@@ -1,7 +1,38 @@
 ; ====================================================================
-; ----------------------------------------------------------------
-; Genesis sound (GEMA/Nicona Sound driver v0.5)
-; ----------------------------------------------------------------
+; --------------------------------------------------------
+; GEMA/Nikona sound driver v0.5
+; (C)2023 GenesisFan64
+;
+; Reads custom "miniature" ImpulseTracker files
+; and automaticly picks the soundchip(s) to play.
+;
+; Features:
+; - Support for 32X's PWM:
+;   | 7 extra pseudo-channels in either MONO
+;   | or STEREO.
+;   | ** REQUIRES specific code for the SH2 side
+;   | and enabling the use of CMD interrupt.
+;   | Uses Slave SH2.
+; - DMA-protection
+;   | This keeps DAC samplerate to a decent
+;   | quality.
+; - DAC Playback at 16000hz
+; - FM special mode with custom frequencies
+; - Autodetection for the PSG's Tone3 mode
+;
+; ⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⣴⣶⡿⠿⠿⠿⣶⣦⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+; ⠀⠀⠀⠀⠀⠀⢀⣠⣶⢟⣿⠟⠁⢰⢋⣽⡆⠈⠙⣿⡿⣶⣄⡀⠀⠀⠀⠀⠀⠀
+; ⠀⠀⠀⠀⣠⣴⠟⠋⢠⣾⠋⠀⣀⠘⠿⠿⠃⣀⠀⠈⣿⡄⠙⠻⣦⣄⠀⠀⠀⠀
+; ⠀⢀⣴⡿⠋⠁⠀⢀⣼⠏⠺⠛⠛⠻⠂⠐⠟⠛⠛⠗⠘⣷⡀⠀⠈⠙⢿⣦⡀⠀
+; ⣴⡟⢁⣀⣠⣤⡾⢿⡟⠀⠀⠀⠘⢷⠾⠷⡾⠃⠀⠀⠀⢻⡿⢷⣤⣄⣀⡈⢻⣦
+; ⠙⠛⠛⠋⠉⠁⠀⢸⡇⠀⠀⢠⣄⠀⠀⠀⠀⣠⡄⠀⠀⢸⡇⠀⠈⠉⠙⠛⠛⠋
+; ⠀⠀⠀⠀⠀⠀⠀⢸⡇⢾⣦⣀⣹⡧⠀⠀⢼⣏⣀⣴⡷⢸⡇⠀⠀⠀⠀⠀⠀⠀
+; ⠀⠀⠀⠀⠀⠀⠀⠸⣧⡀⠈⠛⠛⠁⠀⠀⠈⠛⠛⠁⢀⣼⠇⠀⠀⠀⠀⠀⠀⠀
+; ⠀⠀⠀⠀⠀⠀⠀⢀⣘⣿⣶⣤⣀⣀⣀⣀⣀⣀⣤⣶⣿⣃⠀⠀⠀⠀⠀⠀⠀⠀
+; ⠀⠀⠀⠀⠀⣠⡶⠟⠋⢉⣀⣽⠿⠉⠉⠉⠹⢿⣍⣈⠉⠛⠷⣦⡀⠀⠀⠀⠀⠀
+; ⠀⠀⠀⠀⢾⣯⣤⣴⡾⠟⠋⠁⠀⠀⠀⠀⠀⠀⠉⠛⠷⣶⣤⣬⣿⠀⠀⠀⠀⠀
+; ⠀⠀⠀⠀⠀⠉⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠁⠀⠀⠀⠀⠀
+; --------------------------------------------------------
 
 ; ====================================================================
 ; --------------------------------------------------------
@@ -15,6 +46,8 @@
 ; z80_cpu	equ $A00000		; Z80 CPU area, size: $2000
 ; z80_bus 	equ $A11100		; only read bit 0 (bit 8 as WORD)
 ; z80_reset	equ $A11200		; WRITE only: $0000 reset/$0100 cancel
+
+; Z80-area points:
 zDrvFifo	equ commZfifo		; FIFO command storage
 zDrvFWrt	equ commZWrite		; FIFO command index
 zDrvRomBlk	equ commZRomBlk		; ROM block flag
@@ -328,4 +361,3 @@ gemaSetBeats:
 		move.w	d0,d7
 		bsr	sndReq_sword
 		bra 	sndReq_Exit
-

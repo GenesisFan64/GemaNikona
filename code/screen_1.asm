@@ -268,7 +268,9 @@ MD_2DMODE:
 		move.w	d0,d1
 		add.w	d1,d1
 		move.w	.tempolist(pc,d1.w),d0
+		bmi.s	.no_beats
 		bsr	gemaSetBeats
+.no_beats:
 		move.w	d2,d0
 		bra	gemaPlayTrack
 .stop:
@@ -281,40 +283,41 @@ MD_2DMODE:
 		rts
 
 ; GLOBAL SUBBEATS FOR EACH TRACK.
+; -1 = don't set
 .tempolist:
-		dc.w 200+32
-		dc.w 200+32
-		dc.w 200+32
-		dc.w 200+32
-		dc.w 200+32
-		dc.w 200+32
+		dc.w -1
+		dc.w -1
+		dc.w -1
+		dc.w -1
+		dc.w 200+8
+		dc.w -1
 		dc.w 200+13 ; $0006
-		dc.w 200+32
-		dc.w 200+32
-		dc.w 200+32
-		dc.w 200+32
-		dc.w 200+32
-		dc.w 200+32
-		dc.w 200+32
-		dc.w 200+32
-		dc.w 200+32
+		dc.w -1
+		dc.w -1
+		dc.w -1
+		dc.w -1
+		dc.w -1
+		dc.w -1
+		dc.w -1
+		dc.w -1
+		dc.w -1
 
 		dc.w 200+32
-		dc.w 200+32
-		dc.w 200+32
-		dc.w 200+32
-		dc.w 200+32
-		dc.w 200+32
-		dc.w 200+32
-		dc.w 200+32
-		dc.w 200+32
-		dc.w 200+32
-		dc.w 200+32
-		dc.w 200+32
-		dc.w 200+32
-		dc.w 200+32
-		dc.w 200+32
-		dc.w 200+32
+		dc.w -1
+		dc.w -1
+		dc.w -1
+		dc.w -1
+		dc.w -1
+		dc.w -1
+		dc.w -1
+		dc.w -1
+		dc.w -1
+		dc.w -1
+		dc.w -1
+		dc.w -1
+		dc.w -1
+		dc.w -1
+		dc.w -1
 
 ; ====================================================================
 ; ----------------------------------------------

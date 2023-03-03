@@ -1,10 +1,18 @@
 ; ====================================================================
-; PWM samples on SH2's ROM area $02000000
+; --------------------------------------------------------
+; GEMA/Nikona PWM instruments
 ;
-; Sample data is 8-bit at 22050hz INCLUDING STEREO SAMPLES.
-; ====================================================================
-
+; These MUST be located at SH2's ROM area: $02000000
+; THE SDRAM area ($06000000) CAN be used but there's
+; no enough storage the samples, the SH2 side supports
+; ROM-protection in case the RV-bit is set for
+; Genesis' DMA transfers.
+;
+; Sample data is 8-bit at 22050hz
+; INCLUDING STEREO SAMPLES.
+;
 ; *** PUT align 4 AT THE TOP OF EVERY LABEL ***
+; --------------------------------------------------------
 
 ; ; Special sample data macro
 ; gSmpHead macro len,loop
@@ -12,7 +20,7 @@
 ; 	dc.b ((loop)&$FF),(((loop)>>8)&$FF),(((loop)>>16)&$FF)
 ; 	endm
 
-	align 4		; First align
+	align 4
 SmpIns_Nadie:
 	gSmpHead .end-.start,0
 .start:	binclude "sound/instr/smpl/nadie_st.wav",$2C

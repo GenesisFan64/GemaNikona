@@ -125,7 +125,7 @@ Gema_MasterList:
 	gemaTrk $80|6,GemaTrk_BodyOver
 	gemaTrk 7,GemaTrk_MOVEME
 	gemaTrk 4,GemaTrk_xtrim
-	gemaTrk 4,GemaTrk_TEST_6
+	gemaTrk $80|3,GemaTrk_TEST_6
 	gemaTrk 7,GemaTrk_TEST_1
 	gemaTrk $80|3,GemaTrk_TEST_2
 	gemaTrk 3,GemaTrk_TEST_3
@@ -250,13 +250,13 @@ GemaTrk_TEST_6:
 	gInsFm -12,FmIns_PianoM1
 	gInsNull
 	gInsFm -12,FmIns_Bass_4
-	gInsPsgN 0,$00,$00,$00,$00,$20,$00,%110
+	gInsPsgN 0,$00,$00,$00,$00,$40,$00,%110
 	gInsDac +12,DacIns_wegot_kick,0
 	gInsDac +12,DacIns_wegot_kick,0
-	gInsPsgN 0,$00,$00,$00,$00,$18,$00,%110
+	gInsPsgN 0,$00,$00,$00,$00,$40,$00,%110
 	gInsPsgN 0,$00,$00,$00,$00,$08,$00,%100
 	gInsDac +6,DacIns_Snare_1,0
-	gInsFm -12,FmIns_Trumpet_2
+	gInsFm -12,FmIns_Marimba
 	gInsPsg 0,$10,$20,$40,$01,$01,$00
 	gInsNull
 	gInsNull

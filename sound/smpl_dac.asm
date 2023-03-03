@@ -1,8 +1,12 @@
 ; ====================================================================
-; DAC samples
+; --------------------------------------------------------
+; GEMA/Nikona DAC instruments "digital"
 ;
-; This must be located at the $900000 area.
-; ====================================================================
+; This must be located at the 68k's 900000 area.
+; ** 68K BANK 0 only **
+;
+; BASE Samplerate is at 16000hz
+; --------------------------------------------------------
 
 ; Special sample data macro
 gSmpHead macro len,loop

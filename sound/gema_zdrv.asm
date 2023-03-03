@@ -1,60 +1,37 @@
+; ====================================================================
 ; --------------------------------------------------------
-; GEMA/Nikona sound driver v0.5
+; GEMA/Nikona Z80 code v0.5
 ; (C)2023 GenesisFan64
 ;
-; Reads custom "miniature" ImpulseTracker files
-; and automaticly picks the soundchip(s) to play.
-;
-; Features:
-; - Support for 32X's PWM:
-;   | 7 extra pseudo-channels in either MONO
-;   | or STEREO.
-;   | ** REQUIRES specific code for the SH2 side
-;   | and enabling the use of CMD interrupt.
-;   | Uses Slave SH2.
-; - DMA-protection
-;   | This keeps DAC samplerate to a decent
-;   | quality.
-; - DAC Playback at 16000hz
-; - FM special mode with custom frequencies
-; - Autodetection for the PSG's Tone3 mode
-;
-; ⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⣴⣶⡿⠿⠿⠿⣶⣦⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-; ⠀⠀⠀⠀⠀⠀⢀⣠⣶⢟⣿⠟⠁⢰⢋⣽⡆⠈⠙⣿⡿⣶⣄⡀⠀⠀⠀⠀⠀⠀
-; ⠀⠀⠀⠀⣠⣴⠟⠋⢠⣾⠋⠀⣀⠘⠿⠿⠃⣀⠀⠈⣿⡄⠙⠻⣦⣄⠀⠀⠀⠀
-; ⠀⢀⣴⡿⠋⠁⠀⢀⣼⠏⠺⠛⠛⠻⠂⠐⠟⠛⠛⠗⠘⣷⡀⠀⠈⠙⢿⣦⡀⠀
-; ⣴⡟⢁⣀⣠⣤⡾⢿⡟⠀⠀⠀⠘⢷⠾⠷⡾⠃⠀⠀⠀⢻⡿⢷⣤⣄⣀⡈⢻⣦
-; ⠙⠛⠛⠋⠉⠁⠀⢸⡇⠀⠀⢠⣄⠀⠀⠀⠀⣠⡄⠀⠀⢸⡇⠀⠈⠉⠙⠛⠛⠋
-; ⠀⠀⠀⠀⠀⠀⠀⢸⡇⢾⣦⣀⣹⡧⠀⠀⢼⣏⣀⣴⡷⢸⡇⠀⠀⠀⠀⠀⠀⠀
-; ⠀⠀⠀⠀⠀⠀⠀⠸⣧⡀⠈⠛⠛⠁⠀⠀⠈⠛⠛⠁⢀⣼⠇⠀⠀⠀⠀⠀⠀⠀
-; ⠀⠀⠀⠀⠀⠀⠀⢀⣘⣿⣶⣤⣀⣀⣀⣀⣀⣀⣤⣶⣿⣃⠀⠀⠀⠀⠀⠀⠀⠀
-; ⠀⠀⠀⠀⠀⣠⡶⠟⠋⢉⣀⣽⠿⠉⠉⠉⠹⢿⣍⣈⠉⠛⠷⣦⡀⠀⠀⠀⠀⠀
-; ⠀⠀⠀⠀⢾⣯⣤⣴⡾⠟⠋⠁⠀⠀⠀⠀⠀⠀⠉⠛⠷⣶⣤⣬⣿⠀⠀⠀⠀⠀
-; ⠀⠀⠀⠀⠀⠉⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠁⠀⠀⠀⠀⠀
+; TIP:
+; For the 32X put this on the 880000 area as this is
+; only loaded once.
 ; --------------------------------------------------------
 
 Z80_TOP:
-		cpu Z80			; Enter Z80
-		phase 0
+		cpu Z80		; [AS] Enter Z80
+		phase 0		; [AS]
 
 ; --------------------------------------------------------
 ; SETTINGS
 ; --------------------------------------------------------
 
-MAX_TRKCHN	equ 17		; Max Internal tracker channels: 4PSG + 6FM + 7PWM
-MAX_INS		equ 16		; Max Cache'd ROM instruments
-MAX_BLOCKS	equ 24		; Max Cache'd ROM blocks
-MAX_HEADS	equ 24		; Max Cache'd ROM headers
-MAX_RCACH	equ 40h		; Max storage for ROM pattern data *1-BIT SIZES ONLY*
-MAX_TRFRPZ	equ 8		; Max transferRom packets(bytes) **AFFECTS WAVE QUALITY**
-MAX_TBLSIZE	equ 10h		; Max size for chip tables ****
+; !! = leave as is unless you know what you are doing.
+MAX_TRKCHN	equ 17		; !! Max Internal tracker channels: 4PSG + 6FM + 7PWM (**AFFECTS 32X SIDE)
+MAX_TRFRPZ	equ 8		; !! Max transferRom packets(bytes) (**AFFECTS WAVE QUALITY)
+MAX_RCACH	equ 40h		; Max storage for ROM pattern data *1-BIT SIZES ONLY, MUST BE ALIGNED*
+MAX_TBLSIZE	equ 10h		; Max size for chip tables
+MAX_INS		equ 16		; Max Cache'd ROM instruments per track
+MAX_BLOCKS	equ 24		; Max Cache'd ROM blocks per track
+MAX_HEADS	equ 24		; Max Cache'd ROM headers per track
 ZSET_TESTME	equ 0		; Set to 1 to "hear"-test the DAC playback
 
 ; --------------------------------------------------------
 ; Structs
 ; --------------------------------------------------------
 
-; trkBuff struct
+; trkBuff struct: 00h-30h
+; unused bytes are free.
 ;
 ; trk_Status: %ERPx xxx0
 ; E - enabled
@@ -100,7 +77,7 @@ trk_ChnCach	equ 2Eh	; ** [W] Pointer to pattern storage
 ; v  - Volume*
 ; i  - Intrument*
 ; n  - Note*
-; * Gets deleted later.
+; * Gets cleared later.
 
 chnl_Flags	equ 0	; Playback flags
 chnl_Chip	equ 1	; Current Chip ID + priority for this channel
@@ -115,7 +92,7 @@ chnl_Type	equ 7	; Impulse-note update bits
 ; Variables
 ; --------------------------------------------------------
 
-; Z80 opcode labels for the wave playback routines.
+; Z80 opcode labels for the wave playback routines:
 zopcNop		equ	00h
 zopcEx		equ	08h
 zopcRet		equ 	0C9h
@@ -123,6 +100,7 @@ zopcExx		equ	0D9h		; (dac_me ONLY)
 zopcPushAf	equ	0F5h		; (dac_fill ONLY)
 
 ; PSG external control
+; GEMS style.
 COM		equ	0
 LEV		equ	4
 ATK		equ	8
@@ -139,13 +117,14 @@ PVOL		equ	48
 PARP		equ	52
 PTMR		equ	56
 
+; PWM control
 PWCOM		equ	0
-PWPTH_V		equ	8	; Volume | Pitch MSB (%VVVVVVPP)
+PWPTH_V		equ	8	; Volume | Pitch MSB (VVVVVVPPb)
 PWPHL		equ	16	; Pitch LSB
-PWOUTF		equ	24	; Output mode/bits + SH2 MSB: ROM $02 or SDRAM $06
-PWINSH		equ	32	; 24-bit sample address
-PWINSM		equ	40
-PWINSL		equ	48
+PWOUTF		equ	24	; Output mode/bits | 32-bit address (%SlLRxiix) ii=$02 or $06
+PWINSH		equ	32	; **
+PWINSM		equ	40	; **
+PWINSL		equ	48	; **
 
 ; ====================================================================
 ; --------------------------------------------------------
@@ -1917,8 +1896,10 @@ dtbl_frommul:
 		and	11001111b
 		or	e
 		ld	(ix),a
+	if ZSET_TESTME=0
 		ld	a,1
 		ld	(marsUpd),a
+	endif
 .nopwm_note:
 		pop	ix
 		ret
@@ -2324,8 +2305,8 @@ dtbl_frommul:
 		ld	b,0
 		ld	c,(iy+05h)
 		add	ix,bc
-		ld	bc,24
-		add	ix,bc	; Move to index 24
+		ld	bc,PWOUTF
+		add	ix,bc	; Move to PWOUTF
 		ld	bc,8
 		ld	(ix),d
 		add	ix,bc
@@ -3992,7 +3973,7 @@ trkCach_3	ds MAX_RCACH
 
 ; --------------------------------------------------------
 
-		cpu 68000	; EXIT Z80
-		padding off
-		phase Z80_TOP+*
-		align 2
+		cpu 68000	; [AS] Exit Z80
+		padding off	; [AS] NO padding (again)
+		phase Z80_TOP+*	; [AS] Relocate PC
+		align 2		; [AS] Align by 2
