@@ -1,0 +1,2522 @@
+ AS V1.42 Beta [Bld 118] - source file main.asm - page 1 - 3/10/2023 0:33:40
+
+
+       1/       0 :                     ; ===========================================================================
+       2/       0 :                     ; +-----------------------------------------------------------------+
+       3/       0 :                     ; GAME TEMPLATE
+       4/       0 :                     ; +-----------------------------------------------------------------+
+       5/       0 :                     
+       6/       0 :                     		include "system/macros.asm"	; Assembler macros
+(1)    1/       0 :                     ; ===========================================================================
+(1)    2/       0 :                     ; ----------------------------------------------------------------
+(1)    3/       0 :                     ; MACROS
+(1)    4/       0 :                     ; ----------------------------------------------------------------
+(1)    5/       0 :                     
+(1)    6/       0 :                     		!org 0				; [AS] Start at 0
+(1)    7/       0 :                     		listing purecode		; [AS] Want listing file, but only the final code in expanded macros
+(1)    8/       0 :                     		supmode on 			; [AS] Supervisor mode
+(1)    9/       0 :                     		page 0				; [AS] Listing page 0
+(1)   10/       0 :                     		cpu Z80				; [AS] Current CPU is Z80
+(1)   11/       0 :                     
+(1)   12/       0 :                     ; ====================================================================
+(1)   13/       0 :                     ; ---------------------------------------------
+(1)   14/       0 :                     ; Functions
+(1)   15/       0 :                     ; ---------------------------------------------
+(1)   16/       0 :                     
+(1)   17/       0 :                     ; example of function
+(1)   18/       0 :                     locate		function b,c,(c&0FFh)|(b<<8&0FF00h)		; Layer,X pos,Y pos for some video routines
+(1)   19/       0 :                     
+(1)   20/       0 :                     ; ====================================================================
+(1)   21/       0 :                     ; ---------------------------------------------
+(1)   22/       0 :                     ; Macros
+(1)   23/       0 :                     ; ---------------------------------------------
+(1)   24/       0 :                     
+(1)   25/       0 :                     ; -------------------------------------
+(1)   26/       0 :                     ; Reserve memory space
+(1)   27/       0 :                     ; -------------------------------------
+(1)   28/       0 :                     
+(1)   29/       0 :                     struct		macro thisinput			; Reserve memory address
+(1)   30/       0 :                     GLBL_LASTPC	eval $
+(1)   31/       0 :                     GLBL_LASTORG	eval $
+(1)   32/       0 :                     		dephase
+(1)   33/       0 :                     		phase thisinput
+(1)   34/       0 :                     		endm
+(1)   35/       0 :                     		
+(1)   36/       0 :                     ; -------------------------------------
+(1)   37/       0 :                     ; Finish reserve
+(1)   38/       0 :                     ; -------------------------------------
+(1)   39/       0 :                     
+(1)   40/       0 :                     finish		macro				; Then finish
+(1)   41/       0 :                     		!org GLBL_LASTORG
+(1)   42/       0 :                     		phase GLBL_LASTPC
+(1)   43/       0 :                     		endm
+(1)   44/       0 :                     
+(1)   45/       0 :                     ; -------------------------------------
+(1)   46/       0 :                     ; ZERO Fill padding
+(1)   47/       0 :                     ; 
+(1)   48/       0 :                     ; if AS align doesn't work
+(1)   49/       0 :                     ; -------------------------------------
+(1)   50/       0 :                     
+(1)   51/       0 :                     rompad		macro address			; Zero fill
+(1)   52/       0 :                     diff := address - *
+(1)   53/       0 :                     		if diff < 0
+(1)   54/       0 :                     			error "too much stuff before org $\{address} ($\{(-diff)} bytes)"
+(1)   55/       0 :                     		else
+(1)   56/       0 :                     			while diff > 1024
+(1)   57/       0 :                     				; AS can only generate 1 kb of code on a single line
+(1)   58/       0 :                     				dc.b [1024]0
+(1)   59/       0 :                     diff := diff - 1024
+(1)   60/       0 :                     			endm
+(1)   61/       0 :                     			dc.b [diff]0
+(1)   62/       0 :                     		endif
+(1)   63/       0 :                     	endm
+(1)   64/       0 :                     
+(1)   65/       0 :                     ; ====================================================================
+(1)   66/       0 :                     
+       7/       0 :                     		include "system/const.asm"	; Variables and constants
+(1)    1/       0 :                     ; ====================================================================
+(1)    2/       0 :                     ; ----------------------------------------------------------------
+(1)    3/       0 :                     ; Settings
+(1)    4/       0 :                     ; ----------------------------------------------------------------
+(1)    5/       0 :                     
+(1)    6/       0 : =C000H              MSRAM_START	equ	0C000h		; MS RAM Start
+(1)    7/       0 : =1000H              MAX_MSERAM	equ	1000h		; Maximum temporal RAM for screen modes
+(1)    8/       0 : =10H                MAX_PRNTLIST	equ	16		; Max print values
+(1)    9/       0 :                     
+(1)   10/       0 : =1FFH               varNullVram	equ	1FFh
+(1)   11/       0 :                     
+(1)   12/       0 :                     ; ====================================================================
+(1)   13/       0 :                     ; ----------------------------------------------------------------
+(1)   14/       0 :                     ; Variables
+(1)   15/       0 :                     ; ----------------------------------------------------------------
+(1)   16/       0 :                     
+(1)   17/       0 :                     ; --------------------------------------------------------
+(1)   18/       0 :                     ; System
+(1)   19/       0 :                     ; --------------------------------------------------------
+(1)   20/       0 :                     
+(1)   21/       0 :                     ; ------------------------------------------------
+(1)   22/       0 :                     ; Controller buttons
+(1)   23/       0 :                     ; ------------------------------------------------
+(1)   24/       0 :                     
+(1)   25/       0 : =7H                 bitJoyStart	equ 7
+(1)   26/       0 : =4H                 bitJoy1		equ 4
+(1)   27/       0 : =5H                 bitJoy2		equ 5
+(1)   28/       0 : =3H                 bitJoyRight	equ 3
+(1)   29/       0 : =2H                 bitJoyLeft	equ 2
+(1)   30/       0 : =1H                 bitJoyDown	equ 1
+(1)   31/       0 : =0H                 bitJoyUp	equ 0
+(1)   32/       0 :                     
+(1)   33/       0 : =1H                 JoyUp		equ 01h
+(1)   34/       0 : =2H                 JoyDown 	equ 02h
+(1)   35/       0 : =4H                 JoyLeft		equ 04h
+(1)   36/       0 : =8H                 JoyRight	equ 08h
+(1)   37/       0 : =10H                Joy1		equ 10h
+(1)   38/       0 : =20H                Joy2		equ 20h
+(1)   39/       0 :                     
+(1)   40/       0 :                     ; ====================================================================
+(1)   41/       0 :                     ; ----------------------------------------------------------------
+(1)   42/       0 :                     ; Alias
+(1)   43/       0 :                     ; ----------------------------------------------------------------
+(1)   44/       0 :                     
+(1)   45/       0 : =C239H              Controller_1	equ RAM_InputData
+(1)   46/       0 : =C23BH              Controller_2	equ RAM_InputData+sizeof_input
+(1)   47/       0 :                     
+(1)   48/       0 : =C000H              VDP_PALETTE	equ 0C000h				; Palette
+(1)   49/       0 :                     
+(1)   50/       0 :                     ; ====================================================================
+(1)   51/       0 :                     ; ----------------------------------------------------------------
+(1)   52/       0 :                     ; Structures
+(1)   53/       0 :                     ; ----------------------------------------------------------------
+(1)   54/       0 :                     
+(1)   55/       0 :                     ; Controller
+(1)   56/       0 : (MACRO)             		struct 0
+(1)   56/       0 : =0H                 GLBL_LASTPC     eval $
+(1)   56/       0 : =0H                 GLBL_LASTORG    eval $
+(1)   56/       0 :                                     dephase
+(1)   56/       0 :                                     phase 0
+(1)   57/       0 :                     on_hold		ds 1
+(1)   58/       1 :                     on_press	ds 1
+(1)   59/       2 :                     sizeof_input	ds 1
+(1)   60/       3 : (MACRO)             		finish
+(1)   60/       0 :                                     !org GLBL_LASTORG
+(1)   60/       0 :                                     phase GLBL_LASTPC
+(1)   61/       0 :                     
+(1)   62/       0 :                     ; ====================================================================
+(1)   63/       0 :                     ; ----------------------------------------------------------------
+(1)   64/       0 :                     ; Master System RAM
+(1)   65/       0 :                     ;
+(1)   66/       0 :                     ; Note: 0DFFCh-0DFFFh (0FFFCh-0FFFFh)
+(1)   67/       0 :                     ; is reserved for bankswitch
+(1)   68/       0 :                     ; ----------------------------------------------------------------
+(1)   69/       0 :                     
+(1)   70/       0 :                     ; This looks bad but it works as intended
+(1)   71/       0 :                     
+(1)   72/       0 :                     	; First pass, empty sizes
+(1)   73/       0 : (MACRO)             		struct MSRAM_START		; Set struct at start of our base RAM
+(1)   73/       0 : =0H                 GLBL_LASTPC     eval $
+(1)   73/       0 : =0H                 GLBL_LASTORG    eval $
+(1)   73/       0 :                                     dephase
+(1)   73/    C000 :                                     phase MSRAM_START
+(1)   82/    C000 :                     	
+(1)   83/    C000 :                     	; Second pass, sizes are set
+(1)   84/    C000 :                     RAM_MsSound	ds sizeof_mssnd-RAM_MsSound
+(1)   85/    C138 :                     RAM_MsVideo	ds sizeof_msvid-RAM_MsVideo
+(1)   86/    C239 :                     RAM_MsSystem	ds sizeof_mssys-RAM_MsSystem
+(1)   87/    C246 :                     RAM_Local	ds MAX_MSERAM
+(1)   88/    D246 :                     RAM_Global	ds sizeof_global-RAM_Global
+(1)   89/    D247 :                     sizeof_msram	ds 1
+(1)   91/    D248 :                     	
+(1)   92/    D248 :                     	; --------------------------------
+(1)   93/    D248 :                     	; Report RAM usage
+(1)   94/    D248 :                     	; on pass 7
+(1)   98/    D248 : (MACRO)             		finish
+(1)   98/    C000 :                                     !org GLBL_LASTORG
+(1)   98/       0 :                                     phase GLBL_LASTPC
+(1)   99/       0 :                     
+(1)  100/       0 :                     ; ====================================================================
+(1)  101/       0 :                     ; ----------------------------------------------------------------
+(1)  102/       0 :                     ; Video cache RAM
+(1)  103/       0 :                     ; ----------------------------------------------------------------
+(1)  104/       0 :                     
+(1)  105/       0 : (MACRO)             		struct RAM_MsVideo
+(1)  105/       0 : =0H                 GLBL_LASTPC     eval $
+(1)  105/       0 : =0H                 GLBL_LASTORG    eval $
+(1)  105/       0 :                                     dephase
+(1)  105/    C138 :                                     phase RAM_MSVIDEO
+(1)  106/    C138 :                     RAM_VidPrntList	ds MAX_PRNTLIST*3		; VDP address (WORD), type (BYTE)
+(1)  107/    C168 :                     RAM_VidPrntVram	ds 2				; Current VRAM address for the Print routines
+(1)  108/    C16A :                     RAM_VdpCache	ds 11
+(1)  109/    C175 :                     RAM_SprtY	ds 64				; Y list
+(1)  110/    C1B5 :                     RAM_SprtX	ds 64*2				; X list + char
+(1)  111/    C235 :                     RAM_CurrSprY	ds 2
+(1)  112/    C237 :                     RAM_CurrSprX	ds 2
+(1)  113/    C239 :                     sizeof_msvid	ds 1
+(1)  114/    C23A : (MACRO)             		finish
+(1)  114/    C138 :                                     !org GLBL_LASTORG
+(1)  114/       0 :                                     phase GLBL_LASTPC
+(1)  115/       0 :                     
+(1)  116/       0 :                     
+       8/       0 :                     		include "system/map.asm"	; Memory map
+(1)    1/       0 :                     ; ====================================================================
+(1)    2/       0 :                     ; ----------------------------------------------------------------
+(1)    3/       0 :                     ; Memory map
+(1)    4/       0 :                     ; ----------------------------------------------------------------
+(1)    5/       0 :                     
+(1)    6/       0 :                     ; Banks are 4000h bytes long
+(1)    7/       0 : =FFFCH              bank_ctrl	equ	0FFFCh
+(1)    8/       0 : =FFFDH              bank_0		equ	0FFFDh		; First 1Kbytes (0000h-0400h) are locked to protect interrupts
+(1)    9/       0 : =FFFEH              bank_1		equ	0FFFEh		;
+(1)   10/       0 : =FFFFH              bank_2		equ	0FFFFh		; If bit 3 is set, Cartridge RAM will be mapped here instead.
+(1)   11/       0 :                     
+(1)   12/       0 :                     ; ----------------------------------------------------------------
+(1)   13/       0 :                     ; Ports
+(1)   14/       0 :                     ; 
+(1)   15/       0 :                     ; Remainder: only use these with IN and OUT
+(1)   16/       0 :                     ; R - Read
+(1)   17/       0 :                     ; W - Write
+(1)   18/       0 :                     ; ----------------------------------------------------------------
+(1)   19/       0 :                     
+(1)   20/       0 : =3EH                memory_ctrl	equ	03Eh		; 
+(1)   21/       0 : =3FH                joypad_ctrl	equ	03Fh		; R  | 
+(1)   22/       0 : =7EH                v_counter	equ	07Eh
+(1)   23/       0 : =7FH                psg_ctrl	equ	07Fh		; RW | if WRITE: psg register | if READ: h_counter
+(1)   24/       0 : =BEH                vdp_data	equ	0BEh
+(1)   25/       0 : =BFH                vdp_ctrl	equ	0BFh
+(1)   26/       0 : =DCH                joypad_1	equ	0DCh
+(1)   27/       0 : =DDH                joypad_2	equ	0DDh
+(1)   28/       0 :                     
+(1)   29/       0 :                     ; ------------------------------------------------
+(1)   30/       0 :                     ; GAME GEAR ONLY
+(1)   31/       0 :                     ; on Master System they probably just return -1
+(1)   32/       0 :                     ; ------------------------------------------------
+(1)   33/       0 :                     
+(1)   34/       0 : =0H                 gg_info		equ	00h		; R  | SRN00000b (S-GG Start button | R-Region | N-NTSC/PAL)
+(1)   35/       0 : =1H                 gg_ext_comm	equ	01h		; RW | EXT data if 7-bit mode is set
+(1)   36/       0 : =2H                 gg_ext_bitdir	equ	02h		; RW | EXT data directions
+(1)   37/       0 : =3H                 gg_serial_out	equ	03h		; RW | Serial data SEND port
+(1)   38/       0 : =4H                 gg_serial_in	equ	04h		; R  | Serial data RECIEVE port
+(1)   39/       0 : =5H                 gg_serial	equ	05h		; RW | Serial settings
+(1)   40/       0 : =6H                 gg_stereo	equ	06h		;  W | PSG Stereo bits, set 0FFh if using Game Gear
+(1)   41/       0 :                     
+       9/       0 :                     		include "code/global.asm"	; Global variables and RAM
+(1)    1/       0 :                     ; ====================================================================
+(1)    2/       0 :                     ; ----------------------------------------------------------------
+(1)    3/       0 :                     ; Put your global structs/values here
+(1)    4/       0 :                     ; ----------------------------------------------------------------
+(1)    5/       0 :                     
+(1)    6/       0 :                     ; ====================================================================
+(1)    7/       0 :                     ; --------------------------------------------------------
+(1)    8/       0 :                     ; Structures
+(1)    9/       0 :                     ; --------------------------------------------------------
+(1)   10/       0 :                     
+(1)   11/       0 :                     ; ====================================================================
+(1)   12/       0 :                     ; --------------------------------------------------------
+(1)   13/       0 :                     ; RAM
+(1)   14/       0 :                     ; --------------------------------------------------------
+(1)   15/       0 :                     
+(1)   16/       0 : (MACRO)             		struct RAM_Global
+(1)   16/       0 : =0H                 GLBL_LASTPC     eval $
+(1)   16/       0 : =0H                 GLBL_LASTORG    eval $
+(1)   16/       0 :                                     dephase
+(1)   16/    D246 :                                     phase RAM_GLOBAL
+(1)   17/    D246 :                     RAM_Glbl_Null	ds 1
+(1)   18/    D247 :                     sizeof_global	ds 1
+(1)   19/    D248 : (MACRO)             		finish
+(1)   19/    D246 :                                     !org GLBL_LASTORG
+(1)   19/       0 :                                     phase GLBL_LASTPC
+(1)   20/       0 :                     		
+(1)   21/       0 :                     
+      10/       0 :                     
+      11/       0 :                     ; ====================================================================
+      12/       0 :                     ; DEFAULT BANK 0
+      13/       0 :                     ; 0000-3FFFh
+      14/       0 :                     ; 
+      15/       0 :                     ; (0000-0400h is unaffected)
+      16/       0 :                     ; ====================================================================
+      17/       0 :                     
+      18/       0 : F3                  		di				; Disable interrupts
+      19/       1 : ED 56               		im	1			; Interrput mode 1 (standard)
+      20/       3 : C3 00 10            		jp	MS_Init			; Go to MS_Init
+      21/       6 :                     
+      22/       6 :                     ; ====================================================================
+      23/       6 :                     ; ----------------------------------------------------------------
+      24/       6 :                     ; RST routines will go here (starting at 0008h)
+      25/       6 :                     ; 
+      26/       6 :                     ; aligned by 8
+      27/       6 :                     ; ----------------------------------------------------------------
+      28/       6 :                     
+      29/       6 :                     		align 8
+      30/       8 :                     
+      31/       8 :                     ; ====================================================================
+      32/       8 :                     ; ----------------------------------------------------------------
+      33/       8 :                     ; VBlank and HBlank
+      34/       8 :                     ; 
+      35/       8 :                     ; located at 38h
+      36/       8 :                     ; ----------------------------------------------------------------
+      37/       8 :                     
+      38/       8 :                     		align 38h
+      39/      38 : F3                  		di
+      40/      39 : F5                  		push	af
+      41/      3A : DB BF               		in	a,(vdp_ctrl)
+      42/      3C : 07                  		rlca
+      43/      3D : DA 48 00            		jp	c,.vint
+      44/      40 : F6 80               		or	80h
+      45/      42 : C2 48 00            		jp	nz,.vint
+      46/      45 : C3 3D C2            		jp	(RAM_MkHint)
+      47/      48 :                     .vint:
+      48/      48 : C3 40 C2            		jp	(RAM_MkVint)
+      49/      4B :                     
+      50/      4B :                     ; ====================================================================
+      51/      4B :                     ; ----------------------------------------------------------------
+      52/      4B :                     ; Master System PAUSE Button interrupt
+      53/      4B :                     ; 
+      54/      4B :                     ; at address 0066h
+      55/      4B :                     ; ----------------------------------------------------------------
+      56/      4B :                     
+      57/      4B :                     		align 66h
+      58/      66 : C3 40 C2            		jp	(RAM_MkVint)
+      59/      69 :                     
+      60/      69 :                     ; ====================================================================
+      61/      69 :                     ; ----------------------------------------------------------------
+      62/      69 :                     ; System functions
+      63/      69 :                     ; ----------------------------------------------------------------
+      64/      69 :                     
+      65/      69 :                     		include "sound/gema_gg.asm"	; Sound driver
+(1)    1/      69 :                     ; ====================================================================
+(1)    2/      69 :                     ; --------------------------------------------------------
+(1)    3/      69 :                     ; GEMA/Nikona sound driver v0.5 MkIV/Mercury
+(1)    4/      69 :                     ; (C)2023 GenesisFan64
+(1)    5/      69 :                     ;
+(1)    6/      69 :                     ; Reads custom "miniature" ImpulseTracker files
+(1)    7/      69 :                     ; and automaticly picks the soundchip(s) to play.
+(1)    8/      69 :                     ;
+(1)    9/      69 :                     ; ⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⣴⣶⡿⠿⠿⠿⣶⣦⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+(1)   10/      69 :                     ; ⠀⠀⠀⠀⠀⠀⢀⣠⣶⢟⣿⠟⠁⢰⢋⣽⡆⠈⠙⣿⡿⣶⣄⡀⠀⠀⠀⠀⠀⠀
+(1)   11/      69 :                     ; ⠀⠀⠀⠀⣠⣴⠟⠋⢠⣾⠋⠀⣀⠘⠿⠿⠃⣀⠀⠈⣿⡄⠙⠻⣦⣄⠀⠀⠀⠀
+(1)   12/      69 :                     ; ⠀⢀⣴⡿⠋⠁⠀⢀⣼⠏⠺⠛⠛⠻⠂⠐⠟⠛⠛⠗⠘⣷⡀⠀⠈⠙⢿⣦⡀⠀
+(1)   13/      69 :                     ; ⣴⡟⢁⣀⣠⣤⡾⢿⡟⠀⠀⠀⠘⢷⠾⠷⡾⠃⠀⠀⠀⢻⡿⢷⣤⣄⣀⡈⢻⣦
+(1)   14/      69 :                     ; ⠙⠛⠛⠋⠉⠁⠀⢸⡇⠀⠀⢠⣄⠀⠀⠀⠀⣠⡄⠀⠀⢸⡇⠀⠈⠉⠙⠛⠛⠋
+(1)   15/      69 :                     ; ⠀⠀⠀⠀⠀⠀⠀⢸⡇⢾⣦⣀⣹⡧⠀⠀⢼⣏⣀⣴⡷⢸⡇⠀⠀⠀⠀⠀⠀⠀
+(1)   16/      69 :                     ; ⠀⠀⠀⠀⠀⠀⠀⠸⣧⡀⠈⠛⠛⠁⠀⠀⠈⠛⠛⠁⢀⣼⠇⠀⠀⠀⠀⠀⠀⠀
+(1)   17/      69 :                     ; ⠀⠀⠀⠀⠀⠀⠀⢀⣘⣿⣶⣤⣀⣀⣀⣀⣀⣀⣤⣶⣿⣃⠀⠀⠀⠀⠀⠀⠀⠀
+(1)   18/      69 :                     ; ⠀⠀⠀⠀⠀⣠⡶⠟⠋⢉⣀⣽⠿⠉⠉⠉⠹⢿⣍⣈⠉⠛⠷⣦⡀⠀⠀⠀⠀⠀
+(1)   19/      69 :                     ; ⠀⠀⠀⠀⢾⣯⣤⣴⡾⠟⠋⠁⠀⠀⠀⠀⠀⠀⠉⠛⠷⣶⣤⣬⣿⠀⠀⠀⠀⠀
+(1)   20/      69 :                     ; ⠀⠀⠀⠀⠀⠉⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠁⠀⠀⠀⠀⠀
+(1)   21/      69 :                     ; --------------------------------------------------------
+(1)   22/      69 :                     
+(1)   23/      69 :                     ; --------------------------------------------------------
+(1)   24/      69 :                     ; SETTINGS
+(1)   25/      69 :                     ; --------------------------------------------------------
+(1)   26/      69 :                     
+(1)   27/      69 :                     ; !! = leave as is unless you know what you are doing.
+(1)   28/      69 : =4H                 MAX_TRKCHN	equ 4		; !! Max Internal tracker channels: 4PSG (FM possible but not planned.)
+(1)   29/      69 :                     ; MAX_TRFRPZ	equ 8		; !! Max transferRom packets(bytes) (**AFFECTS WAVE QUALITY)
+(1)   30/      69 : =4H                 MAX_TBLSIZE	equ 4		; Max size for chip tables
+(1)   31/      69 :                     
+(1)   32/      69 :                     ; --------------------------------------------------------
+(1)   33/      69 :                     ; Structs
+(1)   34/      69 :                     ; --------------------------------------------------------
+(1)   35/      69 :                     
+(1)   36/      69 :                     ; trkBuff struct: 00h-30h
+(1)   37/      69 :                     ; unused bytes are free.
+(1)   38/      69 :                     ;
+(1)   39/      69 :                     ; trk_Status: %ERPx xxx0
+(1)   40/      69 :                     ; E - enabled
+(1)   41/      69 :                     ; R - Init|Restart track
+(1)   42/      69 :                     ; P - refill-on-playback
+(1)   43/      69 :                     ; 0 - Use global sub-beat
+(1)   44/      69 : =0H                 trk_status	equ 00h	; ** Track Status and flags (MUST BE at 00h)
+(1)   45/      69 : =1H                 trk_seqId	equ 01h ; ** Track ID to play.
+(1)   46/      69 : =2H                 trk_setBlk	equ 02h	; ** Start on this block
+(1)   47/      69 : =3H                 trk_tickSet	equ 03h	; ** Ticks for this track
+(1)   48/      69 : =4H                 trk_Blocks	equ 04h ; [W] Current track's blocks
+(1)   49/      69 : =6H                 trk_Patt	equ 06h ; [W] Current track's heads and patterns
+(1)   50/      69 : =8H                 trk_Instr	equ 08h ; [W] Current track's instruments
+(1)   51/      69 : =AH                 trk_Read	equ 0Ah	; [W] Track current pattern-read pos
+(1)   52/      69 : =CH                 trk_Rows	equ 0Ch	; [W] Track current row length
+(1)   53/      69 : =EH                 trk_cachHalf	equ 0Eh ; ROM-cache halfcheck
+(1)   54/      69 : =FH                 trk_cachInc	equ 0Fh ; ROM-cache increment
+(1)   55/      69 : =10H                trk_rowPause	equ 10h	; Row-pause timer
+(1)   56/      69 : =11H                trk_tickTmr	equ 11h	; Ticks timer
+(1)   57/      69 : =12H                trk_currBlk	equ 12h	; Current block
+(1)   58/      69 : =13H                trk_Panning	equ 13h ; Global panning for this track %LR000000
+(1)   59/      69 : =14H                trk_Priority	equ 14h ; Priority level for this buffer
+(1)   60/      69 : =15H                trk_LastBkIns	equ 15h
+(1)   61/      69 : =16H                trk_LastBkBlk	equ 16h
+(1)   62/      69 : =17H                trk_LastBkHdrs	equ 17h
+(1)   63/      69 : =1CH                trk_MaxChnls	equ 1Ch	; MAX avaialble channels
+(1)   64/      69 : =1DH                trk_MaxBlks	equ 1Dh ;     ----      blocks
+(1)   65/      69 : =1EH                trk_MaxHdrs	equ 1Eh ;     ----      headers
+(1)   66/      69 : =1FH                trk_MaxIns	equ 1Fh ;     ----      intruments
+(1)   67/      69 : =20H                trk_RomCPatt	equ 20h ; [3b] ROM current pattern data to be cache'd
+(1)   68/      69 : =23H                trk_RomPatt	equ 23h ; [3b] ROM TOP pattern data
+(1)   69/      69 : =26H                trk_ChnList	equ 26h ; ** [W] Pointer to channel list for this buffer
+(1)   70/      69 : =28H                trk_ChnCBlk	equ 28h ; ** [W] Pointer to block storage
+(1)   71/      69 : =2AH                trk_ChnCHead	equ 2Ah ; ** [W] Pointer to header storage
+(1)   72/      69 : =2CH                trk_ChnCIns	equ 2Ch	; ** [W] Pointer to intrument storage (ALWAYS used)
+(1)   73/      69 : =2EH                trk_ChnCach	equ 2Eh	; ** [W] Pointer to pattern storage
+(1)   74/      69 :                     
+(1)   75/      69 :                     ; chnBuff struct, 8 bytes ONLY
+(1)   76/      69 :                     ;
+(1)   77/      69 :                     ; chnl_Flags: LR00evin
+(1)   78/      69 :                     ; LR - Left/Right panning bits (REVERSE: 0-ON 1-OFF)
+(1)   79/      69 :                     ; e  - Effect*
+(1)   80/      69 :                     ; v  - Volume*
+(1)   81/      69 :                     ; i  - Intrument*
+(1)   82/      69 :                     ; n  - Note*
+(1)   83/      69 :                     ; * Gets cleared later.
+(1)   84/      69 :                     
+(1)   85/      69 : =0H                 chnl_Flags	equ 0	; Playback flags
+(1)   86/      69 : =1H                 chnl_Chip	equ 1	; Current Chip ID + priority for this channel
+(1)   87/      69 : =2H                 chnl_Note	equ 2
+(1)   88/      69 : =3H                 chnl_Ins	equ 3	; Starting from 01h
+(1)   89/      69 : =4H                 chnl_Vol	equ 4	; MAX to MIN: 40h-00h
+(1)   90/      69 : =5H                 chnl_EffId	equ 5
+(1)   91/      69 : =6H                 chnl_EffArg	equ 6
+(1)   92/      69 : =7H                 chnl_Type	equ 7	; Impulse-note update bits
+(1)   93/      69 :                     
+(1)   94/      69 :                     ; --------------------------------------------------------
+(1)   95/      69 :                     ; Variables
+(1)   96/      69 :                     ; --------------------------------------------------------
+(1)   97/      69 :                     
+(1)   98/      69 :                     ; PSG external control
+(1)   99/      69 :                     ; GEMS style.
+(1)  100/      69 : =0H                 COM		equ	0
+(1)  101/      69 : =4H                 LEV		equ	4
+(1)  102/      69 : =8H                 ATK		equ	8
+(1)  103/      69 : =CH                 DKY		equ	12
+(1)  104/      69 : =10H                SLV		equ	16
+(1)  105/      69 : =14H                RRT		equ	20
+(1)  106/      69 : =18H                MODE		equ	24
+(1)  107/      69 : =1CH                DTL		equ	28
+(1)  108/      69 : =20H                DTH		equ	32
+(1)  109/      69 : =24H                ALV		equ	36
+(1)  110/      69 : =28H                FLG		equ	40
+(1)  111/      69 : =2CH                TMR		equ	44
+(1)  112/      69 : =30H                PVOL		equ	48
+(1)  113/      69 : =34H                PARP		equ	52
+(1)  114/      69 : =38H                PTMR		equ	56
+(1)  115/      69 :                     
+(1)  116/      69 :                     ; PWM control
+(1)  117/      69 : =0H                 PWCOM		equ	0
+(1)  118/      69 : =8H                 PWPTH_V		equ	8	; Volume | Pitch MSB (VVVVVVPPb)
+(1)  119/      69 : =10H                PWPHL		equ	16	; Pitch LSB
+(1)  120/      69 : =18H                PWOUTF		equ	24	; Output mode/bits | 32-bit address (%SlLRxiix) ii=$02 or $06
+(1)  121/      69 : =20H                PWINSH		equ	32	; **
+(1)  122/      69 : =28H                PWINSM		equ	40	; **
+(1)  123/      69 : =30H                PWINSL		equ	48	; **
+(1)  124/      69 :                     
+(1)  125/      69 :                     ; --------------------------------------------------------
+(1)  126/      69 :                     ; RAM
+(1)  127/      69 :                     ; --------------------------------------------------------
+(1)  128/      69 :                     
+(1)  129/      69 : (MACRO)             		struct RAM_MsSound
+(1)  129/      69 : =69H                GLBL_LASTPC     eval $
+(1)  129/      69 : =69H                GLBL_LASTORG    eval $
+(1)  129/      69 :                                     dephase
+(1)  129/    C000 :                                     phase RAM_MSSOUND
+(1)  130/    C000 :                     trkBuff_0	ds 30h			; TRACK BUFFER 0
+(1)  131/    C030 :                     trkBuff_1	ds 30h			; TRACK BUFFER 1
+(1)  132/    C060 :                     trkBuff_2	ds 30h			; TRACK BUFFER 2
+(1)  133/    C090 :                     trkChnl_0	ds 8*MAX_TRKCHN
+(1)  134/    C0B0 :                     trkChnl_1	ds 8*MAX_TRKCHN
+(1)  135/    C0D0 :                     trkChnl_2	ds 8*MAX_TRKCHN
+(1)  136/    C0F0 :                     commZfifo	ds 40h		; Buffer for commands: 40h bytes
+(1)  137/    C130 :                     commZWrite	ds 1		; cmd fifo wptr (from 68k)
+(1)  138/    C131 :                     commZRomBlk	ds 1		; 68k ROM block flag
+(1)  139/    C132 :                     currTickBits	ds 1		; Current Tick/Subbeat flags (000000BTb B-beat, T-tick)
+(1)  140/    C133 :                     psgStereo	ds 1		; Game gear only: current and past values
+(1)  141/    C134 :                     tickSpSet	ds 1		; **
+(1)  142/    C135 :                     tickFlag	ds 1		; Tick flag from VBlank
+(1)  143/    C136 :                     tickCnt		ds 1		; ** Tick counter (PUT THIS AFTER tickFlag)
+(1)  144/    C137 :                     psgHatMode	ds 1		; Current PSGN mode
+(1)  145/    C138 :                     sizeof_mssnd	ds 1
+(1)  146/    C139 : (MACRO)             		finish
+(1)  146/    C000 :                                     !org GLBL_LASTORG
+(1)  146/      69 :                                     phase GLBL_LASTPC
+(1)  147/      69 :                     
+(1)  148/      69 :                     ; ============================================================
+(1)  149/      69 :                     ; --------------------------------------------------------
+(1)  150/      69 :                     ; Init Sound
+(1)  151/      69 :                     ; --------------------------------------------------------
+(1)  152/      69 :                     
+(1)  153/      69 :                     Sound_Init:
+(1)  154/      69 : 3E 9F               		ld	a,09Fh
+(1)  155/      6B : D3 7F               		out	(psg_ctrl),a			; Set PSG1 Volume to OFF
+(1)  156/      6D : 3E BF               		ld	a,0BFh
+(1)  157/      6F : D3 7F               		out	(psg_ctrl),a			; Set PSG2 Volume to OFF
+(1)  158/      71 : 3E DF               		ld	a,0DFh
+(1)  159/      73 : D3 7F               		out	(psg_ctrl),a			; Set PSG3 Volume to OFF
+(1)  160/      75 : 3E FF               		ld	a,0FFh
+(1)  161/      77 : D3 7F               		out	(psg_ctrl),a			; Set NOISE Volume to OFF
+(1)  162/      79 : 3E FF               		ld	a,-1
+(1)  163/      7B : 32 33 C1            		ld	(psgStereo),a
+(1)  164/      7E : C9                  		ret
+(1)  165/      7F :                     
+(1)  166/      7F :                     ; ============================================================
+(1)  167/      7F :                     ; --------------------------------------------------------
+(1)  168/      7F :                     ; gemaTest
+(1)  169/      7F :                     ;
+(1)  170/      7F :                     ; For TESTING only.
+(1)  171/      7F :                     ; --------------------------------------------------------
+(1)  172/      7F :                     
+(1)  173/      7F :                     gemaTest:
+(1)  174/      7F : C9                  		ret
+(1)  175/      80 :                     ; 		bsr	sndReq_Enter
+(1)  176/      80 :                     ; 		move.w	#$00,d7		; Command $00
+(1)  177/      80 :                     ; 		bsr	sndReq_scmd
+(1)  178/      80 :                     ; 		bra 	sndReq_Exit
+(1)  179/      80 :                     
+(1)  180/      80 :                     ; --------------------------------------------------------
+(1)  181/      80 :                     ; gemaPlayTrack
+(1)  182/      80 :                     ;
+(1)  183/      80 :                     ; Play a track by number
+(1)  184/      80 :                     ;
+(1)  185/      80 :                     ; d0.b - Track number
+(1)  186/      80 :                     ; --------------------------------------------------------
+(1)  187/      80 :                     
+(1)  188/      80 :                     gemaPlayTrack:
+(1)  189/      80 : C9                  		ret
+(1)  190/      81 :                     ; 		bsr	sndReq_Enter
+(1)  191/      81 :                     ; 		move.w	#$01,d7		; Command $01
+(1)  192/      81 :                     ; 		bsr	sndReq_scmd
+(1)  193/      81 :                     ; 		move.b	d0,d7
+(1)  194/      81 :                     ; 		bsr	sndReq_sbyte
+(1)  195/      81 :                     ; 		bra 	sndReq_Exit
+(1)  196/      81 :                     
+(1)  197/      81 :                     ; --------------------------------------------------------
+(1)  198/      81 :                     ; gemaStopTrack
+(1)  199/      81 :                     ;
+(1)  200/      81 :                     ; Stops a track using that ID
+(1)  201/      81 :                     ;
+(1)  202/      81 :                     ; d0.b - Track number
+(1)  203/      81 :                     ; --------------------------------------------------------
+(1)  204/      81 :                     
+(1)  205/      81 :                     gemaStopTrack:
+(1)  206/      81 : C9                  		ret
+(1)  207/      82 :                     ; 		bsr	sndReq_Enter
+(1)  208/      82 :                     ; 		move.w	#$02,d7		; Command $02
+(1)  209/      82 :                     ; 		bsr	sndReq_scmd
+(1)  210/      82 :                     ; 		move.b	d0,d7
+(1)  211/      82 :                     ; 		bsr	sndReq_sbyte
+(1)  212/      82 :                     ; 		bra 	sndReq_Exit
+(1)  213/      82 :                     
+(1)  214/      82 :                     ; --------------------------------------------------------
+(1)  215/      82 :                     ; gemaStopAll
+(1)  216/      82 :                     ;
+(1)  217/      82 :                     ; Stop ALL tracks from ALL buffers.
+(1)  218/      82 :                     ;
+(1)  219/      82 :                     ; No arguments.
+(1)  220/      82 :                     ; --------------------------------------------------------
+(1)  221/      82 :                     
+(1)  222/      82 :                     gemaStopAll:
+(1)  223/      82 : C9                  		ret
+(1)  224/      83 :                     ; 		bsr	sndReq_Enter
+(1)  225/      83 :                     ; 		move.w	#$08,d7		; Command $08
+(1)  226/      83 :                     ; 		bsr	sndReq_scmd
+(1)  227/      83 :                     ; 		bra 	sndReq_Exit
+(1)  228/      83 :                     
+(1)  229/      83 :                     ; --------------------------------------------------------
+(1)  230/      83 :                     ; gemaSetBeats
+(1)  231/      83 :                     ;
+(1)  232/      83 :                     ; Sets global subbeats
+(1)  233/      83 :                     ;
+(1)  234/      83 :                     ; d0.w - sub-beats
+(1)  235/      83 :                     ; --------------------------------------------------------
+(1)  236/      83 :                     
+(1)  237/      83 :                     gemaSetBeats:
+(1)  238/      83 : C9                  		ret
+(1)  239/      84 :                     ; 		bsr	sndReq_Enter
+(1)  240/      84 :                     ; 		move.w	#$0C,d7		; Command $0C
+(1)  241/      84 :                     ; 		bsr	sndReq_scmd
+(1)  242/      84 :                     ; 		move.w	d0,d7
+(1)  243/      84 :                     ; 		bsr	sndReq_sword
+(1)  244/      84 :                     ; 		bra 	sndReq_Exit
+(1)  245/      84 :                     
+(1)  246/      84 :                     ; ============================================================
+(1)  247/      84 :                     ; --------------------------------------------------------
+(1)  248/      84 :                     ; Run sound driver
+(1)  249/      84 :                     ;
+(1)  250/      84 :                     ; Call this during VBlank ONLY
+(1)  251/      84 :                     ; --------------------------------------------------------
+(1)  252/      84 :                     
+(1)  253/      84 :                     Sound_Run:
+(1)  254/      84 : C9                  		ret
+(1)  255/      85 :                     
+(1)  256/      85 :                     ; 		;rst	8
+(1)  257/      85 :                     ; 		call	get_tick		; Check for Tick on VBlank
+(1)  258/      85 :                     ; 		;rst	20h			; Refill wave
+(1)  259/      85 :                     ; 		;rst	8
+(1)  260/      85 :                     ; 		ld	b,0			; b - Reset current flags (beat|tick)
+(1)  261/      85 :                     ; 		ld	a,(tickCnt)
+(1)  262/      85 :                     ; 		sub	1
+(1)  263/      85 :                     ; 		jr	c,.noticks
+(1)  264/      85 :                     ; 		ld	(tickCnt),a
+(1)  265/      85 :                     ; 		call	chip_env		; Process PSG and YM
+(1)  266/      85 :                     ; 		call	get_tick		; Check for another tick
+(1)  267/      85 :                     ; 		ld 	b,01b			; Set TICK (01b) flag, and clear BEAT
+(1)  268/      85 :                     ; .noticks:
+(1)  269/      85 :                     ; 		ld	a,(sbeatAcc+1)		; check beat counter (scaled by tempo)
+(1)  270/      85 :                     ; 		sub	1
+(1)  271/      85 :                     ; 		jr	c,.nobeats
+(1)  272/      85 :                     ; 		;rst	8
+(1)  273/      85 :                     ; 		ld	(sbeatAcc+1),a		; 1/24 beat passed.
+(1)  274/      85 :                     ; 		set	1,b			; Set BEAT (10b) flag
+(1)  275/      85 :                     ; .nobeats:
+(1)  276/      85 :                     ; 		;rst	8
+(1)  277/      85 :                     ; 		ld	a,b			; Any beat/tick change?
+(1)  278/      85 :                     ; 		or	a
+(1)  279/      85 :                     ; 		jr	z,.neither
+(1)  280/      85 :                     ; 		ld	(currTickBits),a	; Save BEAT/TICK bits
+(1)  281/      85 :                     ; 		;rst	8
+(1)  282/      85 :                     ; 		call	get_tick
+(1)  283/      85 :                     ; 		call	set_chips		; Send changes to sound chips
+(1)  284/      85 :                     ; 		call	get_tick
+(1)  285/      85 :                     ; 		;rst	8
+(1)  286/      85 :                     ; 		call	upd_track		; Update track data
+(1)  287/      85 :                     ; 		call	get_tick
+(1)  288/      85 :                     ; .neither:
+(1)  289/      85 :                     ; 		call	ex_comm			; External communication
+(1)  290/      85 :                     ; 		call	get_tick
+(1)  291/      85 :                     ; .next_cmd:
+(1)  292/      85 :                     ; 		ld	a,(commZWrite)		; Check command READ and WRITE indexes
+(1)  293/      85 :                     ; 		ld	b,a
+(1)  294/      85 :                     ; 		ld	a,(commZRead)
+(1)  295/      85 :                     ; 		cp	b
+(1)  296/      85 :                     ; 		jr	z,drv_loop		; If both are equal: no requests
+(1)  297/      85 :                     ; 		;rst	8
+(1)  298/      85 :                     ; 		call	.grab_arg
+(1)  299/      85 :                     ; 		cp	-1			; Got -1? (Start of command)
+(1)  300/      85 :                     ; 		jr	nz,drv_loop
+(1)  301/      85 :                     ; 		call	.grab_arg		; Read command number
+(1)  302/      85 :                     ; 		add	a,a			; * 2
+(1)  303/      85 :                     ; 		ld	hl,.list		; Then jump to one of these...
+(1)  304/      85 :                     ; 		;rst	8
+(1)  305/      85 :                     ; 		ld	d,0
+(1)  306/      85 :                     ; 		ld	e,a
+(1)  307/      85 :                     ; 		add	hl,de
+(1)  308/      85 :                     ; 		ld	a,(hl)
+(1)  309/      85 :                     ; 		inc	hl
+(1)  310/      85 :                     ; 		ld	h,(hl)
+(1)  311/      85 :                     ; 		;rst	8
+(1)  312/      85 :                     ; 		ld	l,a
+(1)  313/      85 :                     ; 		jp	(hl)
+(1)  314/      85 :                     ;
+(1)  315/      85 :                     ; ; --------------------------------------------------------
+(1)  316/      85 :                     ; ; Read cmd byte, auto re-rolls to 3Fh
+(1)  317/      85 :                     ; ; --------------------------------------------------------
+(1)  318/      85 :                     ;
+(1)  319/      85 :                     ; .grab_arg:
+(1)  320/      85 :                     ; 		push	de
+(1)  321/      85 :                     ; 		push	hl
+(1)  322/      85 :                     ; .getcbytel:
+(1)  323/      85 :                     ; 		ld	a,(commZWrite)
+(1)  324/      85 :                     ; 		ld	d,a
+(1)  325/      85 :                     ; 		rst	8
+(1)  326/      85 :                     ; 		ld	a,(commZRead)
+(1)  327/      85 :                     ; 		cp	d
+(1)  328/      85 :                     ; 		jr	z,.getcbytel	; wait until these counters change.
+(1)  329/      85 :                     ; 		rst	8
+(1)  330/      85 :                     ; 		ld	d,0
+(1)  331/      85 :                     ; 		ld	e,a
+(1)  332/      85 :                     ; 		ld	hl,commZfifo
+(1)  333/      85 :                     ; 		add	hl,de
+(1)  334/      85 :                     ; 		rst	8
+(1)  335/      85 :                     ; 		inc	a
+(1)  336/      85 :                     ; 		and	3Fh		; ** command list limit
+(1)  337/      85 :                     ; 		ld	(commZRead),a
+(1)  338/      85 :                     ; 		ld	a,(hl)		; a - the byte we got
+(1)  339/      85 :                     ; 		pop	hl
+(1)  340/      85 :                     ; 		pop	de
+(1)  341/      85 :                     ; 		ret
+(1)  342/      85 :                     ;
+(1)  343/      85 :                     ; ; --------------------------------------------------------
+(1)  344/      85 :                     ;
+(1)  345/      85 :                     ; .list:
+(1)  346/      85 :                     ; 		dw .cmnd_0		; 00h -
+(1)  347/      85 :                     ; 		dw .cmnd_1		; 01h - Play by track number
+(1)  348/      85 :                     ; 		dw .cmnd_2		; 02h - Stop by track number
+(1)  349/      85 :                     ; 		dw .cmnd_0		; 03h - Resume by track number
+(1)  350/      85 :                     ; 		dw .cmnd_0		; 04h -
+(1)  351/      85 :                     ; 		dw .cmnd_0		; 05h -
+(1)  352/      85 :                     ; 		dw .cmnd_0		; 06h -
+(1)  353/      85 :                     ; 		dw .cmnd_0		; 07h -
+(1)  354/      85 :                     ; 		dw .cmnd_8		; 08h - Stop ALL
+(1)  355/      85 :                     ; 		dw .cmnd_0		; 09h -
+(1)  356/      85 :                     ; 		dw .cmnd_0		; 0Ah -
+(1)  357/      85 :                     ; 		dw .cmnd_0		; 0Bh -
+(1)  358/      85 :                     ; 		dw .cmnd_C		; 0Ch - Set GLOBAL sub-beats
+(1)  359/      85 :                     ; 		dw .cmnd_0		; 0Dh -
+(1)  360/      85 :                     ; 		dw .cmnd_0		; 0Eh -
+(1)  361/      85 :                     ; 		dw .cmnd_0		; 0Fh -
+(1)  362/      85 :                     
+(1)  363/      85 :                     ; ; --------------------------------------------------------
+(1)  364/      85 :                     ; ; Command 00h
+(1)  365/      85 :                     ; ;
+(1)  366/      85 :                     ; ; Reserved for TESTING purposes.
+(1)  367/      85 :                     ; ; --------------------------------------------------------
+(1)  368/      85 :                     ;
+(1)  369/      85 :                     ; ; TEST COMMAND
+(1)  370/      85 :                     ;
+(1)  371/      85 :                     ; .cmnd_0:
+(1)  372/      85 :                     ; ; 		jp	.next_cmd
+(1)  373/      85 :                     ;
+(1)  374/      85 :                     ; ; 	if MARS
+(1)  375/      85 :                     ; ; 		ld	iy,pwmcom
+(1)  376/      85 :                     ; ; 		ld	hl,.tempset
+(1)  377/      85 :                     ; ; 		ld	de,8
+(1)  378/      85 :                     ; ; 		ld	b,e
+(1)  379/      85 :                     ; ; 		dec	b
+(1)  380/      85 :                     ; ; .copyme:
+(1)  381/      85 :                     ; ; 		ld	a,(hl)
+(1)  382/      85 :                     ; ; 		ld	(iy),a
+(1)  383/      85 :                     ; ; 		inc	hl
+(1)  384/      85 :                     ; ; 		add	iy,de
+(1)  385/      85 :                     ; ; 		djnz	.copyme
+(1)  386/      85 :                     ; ; 		ld	a,1
+(1)  387/      85 :                     ; ; 		ld	(marsUpd),a
+(1)  388/      85 :                     ; ; 		jp	.next_cmd
+(1)  389/      85 :                     ; ; .tempset:
+(1)  390/      85 :                     ; ; 		db 0001b
+(1)  391/      85 :                     ; ; 		db 01h
+(1)  392/      85 :                     ; ; 		db 00h
+(1)  393/      85 :                     ; ; 		db 11110000b|02h
+(1)  394/      85 :                     ; ; 		db (SmpIns_TEST>>16)&0FFh
+(1)  395/      85 :                     ; ; 		db (SmpIns_TEST>>8)&0FFh
+(1)  396/      85 :                     ; ; 		db (SmpIns_TEST)&0FFh
+(1)  397/      85 :                     ; ; 	else
+(1)  398/      85 :                     ; ; 		jp	.next_cmd
+(1)  399/      85 :                     ; ; 	endif
+(1)  400/      85 :                     ;
+(1)  401/      85 :                     ; 		call	dac_off
+(1)  402/      85 :                     ; 		ld	iy,wave_Start
+(1)  403/      85 :                     ; 		ld	hl,.tempset
+(1)  404/      85 :                     ; 		ld	b,0Bh
+(1)  405/      85 :                     ; .copyme:
+(1)  406/      85 :                     ; 		ld	a,(hl)
+(1)  407/      85 :                     ; 		ld	(iy),a
+(1)  408/      85 :                     ; 		inc	hl
+(1)  409/      85 :                     ; 		inc	iy
+(1)  410/      85 :                     ; 		djnz	.copyme
+(1)  411/      85 :                     ; 		ld	hl,100h
+(1)  412/      85 :                     ; 		ld	(wave_Pitch),hl
+(1)  413/      85 :                     ; 		ld	a,1
+(1)  414/      85 :                     ; 		ld	(wave_Flags),a
+(1)  415/      85 :                     ; 		call	dac_play
+(1)  416/      85 :                     ; 		jp	.next_cmd
+(1)  417/      85 :                     ; .tempset:
+(1)  418/      85 :                     ; 		dw TEST_WAVE&0FFFFh
+(1)  419/      85 :                     ; 		db TEST_WAVE>>16&0FFh
+(1)  420/      85 :                     ; 		dw (TEST_WAVE_E-TEST_WAVE)&0FFFFh
+(1)  421/      85 :                     ; 		db (TEST_WAVE_E-TEST_WAVE)>>16&0FFh
+(1)  422/      85 :                     ; 		dw 0
+(1)  423/      85 :                     ; 		db 0
+(1)  424/      85 :                     ; 		dw 0100h;+(ZSET_WTUNE)
+(1)  425/      85 :                     ;
+(1)  426/      85 :                     ; ; --------------------------------------------------------
+(1)  427/      85 :                     ; ; Command 01h:
+(1)  428/      85 :                     ; ;
+(1)  429/      85 :                     ; ; Make new track by sequence number
+(1)  430/      85 :                     ; ; --------------------------------------------------------
+(1)  431/      85 :                     ;
+(1)  432/      85 :                     ; .cmnd_1:
+(1)  433/      85 :                     ; 		call	.grab_arg	; d0: Sequence ID
+(1)  434/      85 :                     ; 		ld	c,a		; copy to c
+(1)  435/      85 :                     ; 		call	.srch_frid	; Search buffer with same ID or FREE to use.
+(1)  436/      85 :                     ; 		cp	-1
+(1)  437/      85 :                     ; 		jp	z,.next_cmd	; Return if failed.
+(1)  438/      85 :                     ; 		ld	(hl),0C0h	; Flags: Enable+Restart bits
+(1)  439/      85 :                     ; 		inc	hl
+(1)  440/      85 :                     ; 		ld	(hl),c		; ** write trk_seqId
+(1)  441/      85 :                     ; 		call	get_RomTrcks
+(1)  442/      85 :                     ; 		jp	.next_cmd
+(1)  443/      85 :                     ;
+(1)  444/      85 :                     ; ; --------------------------------------------------------
+(1)  445/      85 :                     ; ; Command 02h:
+(1)  446/      85 :                     ; ;
+(1)  447/      85 :                     ; ; Stop track by sequence number
+(1)  448/      85 :                     ; ; --------------------------------------------------------
+(1)  449/      85 :                     ;
+(1)  450/      85 :                     ; .cmnd_2:
+(1)  451/      85 :                     ; 		call	.grab_arg	; d0: Sequence ID
+(1)  452/      85 :                     ; 		ld	c,a		; copy to c
+(1)  453/      85 :                     ; 		call	.srch_frid
+(1)  454/      85 :                     ; 		cp	-1
+(1)  455/      85 :                     ; 		jp	z,.next_cmd
+(1)  456/      85 :                     ; 		ld	a,(hl)
+(1)  457/      85 :                     ; 		bit	7,a
+(1)  458/      85 :                     ; 		jp	z,.next_cmd
+(1)  459/      85 :                     ; 		ld	(hl),-1		; Flags | Enable+Restart bits
+(1)  460/      85 :                     ; 		inc	hl
+(1)  461/      85 :                     ; 		ld	(hl),-1		; Reset seqId
+(1)  462/      85 :                     ; 		rst	8
+(1)  463/      85 :                     ; 		jp	.next_cmd
+(1)  464/      85 :                     ;
+(1)  465/      85 :                     ; ; --------------------------------------------------------
+(1)  466/      85 :                     ; ; Command 08h:
+(1)  467/      85 :                     ; ;
+(1)  468/      85 :                     ; ; Stop ALL tracks
+(1)  469/      85 :                     ; ; --------------------------------------------------------
+(1)  470/      85 :                     ;
+(1)  471/      85 :                     ; .cmnd_8:
+(1)  472/      85 :                     ; 		ld	ix,nikona_BuffList
+(1)  473/      85 :                     ; .next_sall:
+(1)  474/      85 :                     ; 		ld	a,(ix)
+(1)  475/      85 :                     ; 		cp	-1
+(1)  476/      85 :                     ; 		jp	z,.next_cmd
+(1)  477/      85 :                     ; 		ld	h,(ix+1)
+(1)  478/      85 :                     ; 		ld	l,a
+(1)  479/      85 :                     ; 		ld	a,(hl)
+(1)  480/      85 :                     ; 		bit	7,a
+(1)  481/      85 :                     ; 		jr	z,.not_on
+(1)  482/      85 :                     ; 		ld	(hl),-1		; Flags | Enable+Restart bits
+(1)  483/      85 :                     ; 		inc	hl
+(1)  484/      85 :                     ; 		ld	(hl),-1		; Reset seqId
+(1)  485/      85 :                     ; .not_on:
+(1)  486/      85 :                     ; 		ld	de,10h
+(1)  487/      85 :                     ; 		add	ix,de
+(1)  488/      85 :                     ; 		jp	.next_sall
+(1)  489/      85 :                     ;
+(1)  490/      85 :                     ; ; --------------------------------------------------------
+(1)  491/      85 :                     ; ; Command 0Ch:
+(1)  492/      85 :                     ; ;
+(1)  493/      85 :                     ; ; Set global sub-beats
+(1)  494/      85 :                     ; ; --------------------------------------------------------
+(1)  495/      85 :                     ;
+(1)  496/      85 :                     ; .cmnd_C:
+(1)  497/      85 :                     ; 		call	.grab_arg	; d0.w: $00xx
+(1)  498/      85 :                     ; 		ld	c,a
+(1)  499/      85 :                     ; 		call	.grab_arg	; d0.w: $xx00
+(1)  500/      85 :                     ; 		ld	(sbeatPtck+1),a
+(1)  501/      85 :                     ; 		ld	a,c
+(1)  502/      85 :                     ; 		ld	(sbeatPtck),a
+(1)  503/      85 :                     ; 		jp	.next_cmd
+(1)  504/      85 :                     ;
+(1)  505/      85 :                     ; ; ------------------------------------------------
+(1)  506/      85 :                     ;
+(1)  507/      85 :                     ; .srch_frid:
+(1)  508/      85 :                     ; 		ld	ix,nikona_BuffList
+(1)  509/      85 :                     ; 		ld	de,10h
+(1)  510/      85 :                     ; .next:
+(1)  511/      85 :                     ; 		ld	a,(ix)
+(1)  512/      85 :                     ; 		cp	-1
+(1)  513/      85 :                     ; 		ret	z
+(1)  514/      85 :                     ; 		ld	h,(ix+1)
+(1)  515/      85 :                     ; 		ld	l,a
+(1)  516/      85 :                     ; 		add	ix,de
+(1)  517/      85 :                     ; 		inc	hl
+(1)  518/      85 :                     ; 		rst	8
+(1)  519/      85 :                     ; 		ld	a,(hl)		; ** a - trk_Id
+(1)  520/      85 :                     ; 		dec	hl
+(1)  521/      85 :                     ; 		cp	c
+(1)  522/      85 :                     ; 		jr	z,.found
+(1)  523/      85 :                     ; 		ld	a,(hl)		; ** a - trk_status
+(1)  524/      85 :                     ; 		or	a
+(1)  525/      85 :                     ; 		jp	m,.next
+(1)  526/      85 :                     ; .found:
+(1)  527/      85 :                     ; 		rst	8
+(1)  528/      85 :                     ; 		xor	a
+(1)  529/      85 :                     ; 		ret
+(1)  530/      85 :                     
+(1)  531/      85 :                     ; ====================================================================
+(1)  532/      85 :                     ; ----------------------------------------------------------------
+(1)  533/      85 :                     ; MASTER buffers list
+(1)  534/      85 :                     ;
+(1)  535/      85 :                     ; dw track_buffer
+(1)  536/      85 :                     ; dw channel_list,block_cache,header_cache,instr_cache,track_cache
+(1)  537/      85 :                     ; db 0,0,0,0
+(1)  538/      85 :                     ; ----------------------------------------------------------------
+(1)  539/      85 :                     
+(1)  540/      85 :                     nikona_BuffList:
+(1)  541/      85 : 00 C0 90 C0         	dw trkBuff_0,trkChnl_0
+(1)  542/      89 : 30 C0 B0 C0         	dw trkBuff_1,trkChnl_1
+(1)  543/      8D :                     ; 	dw trkBuff_2,trkChnl_2,trkBlks_2,trkHdrs_2,trkInsD_2,trkCach_2
+(1)  544/      8D :                     ; 	db MAX_BLOCKS,MAX_HEADS,MAX_INS,MAX_TRKCHN
+(1)  545/      8D : FF FF               	dw -1
+(1)  546/      8F :                     ;
+(1)  547/      8F :                     ; nikona_SetMstrList:
+(1)  548/      8F :                     ; 	db 0				; ** 32-bit 68k address **
+(1)  549/      8F :                     ; 	db (Gema_MasterList>>16)&0FFh
+(1)  550/      8F :                     ; 	db (Gema_MasterList>>8)&0FFh
+(1)  551/      8F :                     ; 	db Gema_MasterList&0FFh
+(1)  552/      8F :                     
+      66/      8F :                     		include "system/video.asm"	; Video
+(1)    1/      8F :                     ; ====================================================================
+(1)    2/      8F :                     ; ----------------------------------------------------------------
+(1)    3/      8F :                     ; Video
+(1)    4/      8F :                     ; ----------------------------------------------------------------
+(1)    5/      8F :                     
+(1)    6/      8F :                     ; --------------------------------------------------------
+(1)    7/      8F :                     ; Init Video
+(1)    8/      8F :                     ; --------------------------------------------------------
+(1)    9/      8F :                     
+(1)   10/      8F :                     Video_Init:
+(1)   11/      8F : CD E2 00            		call	Video_Clear
+(1)   12/      92 :                      
+(1)   13/      92 : 21 AF 02            		ld      hl,list_vdpregs		; hl - data array for default register data
+(1)   14/      95 : 11 6A C1            		ld	de,RAM_VdpCache		; de - VDP cache on RAM
+(1)   15/      98 : 0E 80               		ld      c,80h			; c - 80h start at first register
+(1)   16/      9A : 06 0B               		ld      b,11			; b - 11 registers to set	
+(1)   17/      9C :                     .loop:
+(1)   18/      9C : 7E                  		ld	a,(hl)			; Grab byte from list
+(1)   19/      9D : 12                  		ld	(de),a
+(1)   20/      9E : 13                  		inc 	de
+(1)   21/      9F : D3 BF               		out	(vdp_ctrl),a		; First VDP write
+(1)   22/      A1 : 79                  		ld	a,c			; Now set the register
+(1)   23/      A2 : D3 BF               		out	(vdp_ctrl),a		; Second VDP write
+(1)   24/      A4 : 0C                  		inc	c			; Next register to use
+(1)   25/      A5 : 23                  		inc 	hl			; Next byte from the list
+(1)   26/      A6 : 10 F4               		djnz    .loop    		; decrement b and jump if b != 0
+(1)   27/      A8 : C9                  		ret
+(1)   28/      A9 :                     
+(1)   29/      A9 :                     ; --------------------------------------------------------
+(1)   30/      A9 :                     ; Video_InitPrint
+(1)   31/      A9 :                     ; 
+(1)   32/      A9 :                     ; Call this before using any on-screen text print
+(1)   33/      A9 :                     ; 
+(1)   34/      A9 :                     ; Graphics will be located at in 160h
+(1)   35/      A9 :                     ; (ASCII starts at 140h)
+(1)   36/      A9 :                     ; Uses palette line 0
+(1)   37/      A9 :                     ; --------------------------------------------------------
+(1)   38/      A9 :                     
+(1)   39/      A9 :                     Video_InitPrint:
+(1)   40/      A9 : 11 40 01            		ld	de,140h			; VRAM | Palette 2
+(1)   41/      AC : ED 53 68 C1         		ld	(RAM_VidPrntVram),de
+(1)   42/      B0 : 21 BA 02            		ld	hl,Art_PrintFont
+(1)   43/      B3 : 11 00 0C            		ld	de,Art_PrintFont_e-Art_PrintFont
+(1)   44/      B6 : 01 60 01            		ld	bc,140h+20h
+(1)   45/      B9 : CD 52 01            		call	Video_LoadArt
+(1)   46/      BC :                     		
+(1)   47/      BC : 21 BA 0E            		ld	hl,Pal_PrintFont
+(1)   48/      BF : 06 10               		ld	b,16
+(1)   49/      C1 : 16 00               		ld	d,0
+(1)   50/      C3 : CD 15 01            		call	Video_LoadPal		
+(1)   51/      C6 : 21 BA 0E            		ld	hl,Pal_PrintFont
+(1)   52/      C9 : 06 06               		ld	b,6
+(1)   53/      CB : 16 10               		ld	d,16
+(1)   54/      CD : C3 15 01            		jp	Video_LoadPal
+(1)   55/      D0 :                     
+(1)   56/      D0 :                     ; ====================================================================
+(1)   57/      D0 :                     ; ----------------------------------------------------------------
+(1)   58/      D0 :                     ; Video subroutines
+(1)   59/      D0 :                     ; ----------------------------------------------------------------
+(1)   60/      D0 :                     
+(1)   61/      D0 :                     ; ---------------------------------
+(1)   62/      D0 :                     ; Video_Update
+(1)   63/      D0 :                     ; 
+(1)   64/      D0 :                     ; Update registers from cache
+(1)   65/      D0 :                     ; to VDP
+(1)   66/      D0 :                     ; ---------------------------------
+(1)   67/      D0 :                     
+(1)   68/      D0 :                     Video_Update:
+(1)   69/      D0 : 21 6A C1            		ld      hl,RAM_VdpCache		; hl - data array for default register data
+(1)   70/      D3 : 0E 80               		ld      c,80h			; c - 80h start at first register
+(1)   71/      D5 : 06 0B               		ld      b,11			; b - 11 registers to set	
+(1)   72/      D7 :                     .loop:
+(1)   73/      D7 : 7E                  		ld	a,(hl)			; Grab byte from list
+(1)   74/      D8 : D3 BF               		out	(vdp_ctrl),a		; First VDP write
+(1)   75/      DA : 79                  		ld	a,c			; Now set the register
+(1)   76/      DB : D3 BF               		out	(vdp_ctrl),a		; Second VDP write
+(1)   77/      DD : 0C                  		inc	c			; Next register to use
+(1)   78/      DE : 23                  		inc 	hl			; Next byte from the list
+(1)   79/      DF : 10 F6               		djnz    .loop    		; decrement b and jump if b != 0
+(1)   80/      E1 : C9                  		ret
+(1)   81/      E2 :                     
+(1)   82/      E2 :                     ; --------------------------------------------------------
+(1)   83/      E2 :                     ; Video_Clear
+(1)   84/      E2 :                     ; 
+(1)   85/      E2 :                     ; Clear everything on-screen
+(1)   86/      E2 :                     ;
+(1)   87/      E2 :                     ; Uses:
+(1)   88/      E2 :                     ; hl,bc,de
+(1)   89/      E2 :                     ; --------------------------------------------------------
+(1)   90/      E2 :                     
+(1)   91/      E2 :                     Video_Clear:
+(1)   92/      E2 : 06 10               		ld	b,16			; Clear pallete
+(1)   93/      E4 : DB 00               		in	a,(gg_info)		; Check if we are in Game Gear
+(1)   94/      E6 : E6 1F               		and	1Fh
+(1)   95/      E8 : C2 ED 00            		jp	nz,.mark_ms
+(1)   96/      EB : CB 20               		sla	b			; Length * 2
+(1)   97/      ED :                     .mark_ms:
+(1)   98/      ED : 21 00 C0            		ld	hl,0C000h
+(1)   99/      F0 : 0E BF               		ld	c,vdp_ctrl
+(1)  100/      F2 : ED 69               		out	(c),l
+(1)  101/      F4 : ED 61               		out	(c),h
+(1)  102/      F6 : AF                  		xor	a
+(1)  103/      F7 : 0E BE               		ld	c,vdp_data
+(1)  104/      F9 :                     .pal_clr:
+(1)  105/      F9 : ED 79               		out	(c),a
+(1)  106/      FB : 10 FC               		djnz	.pal_clr
+(1)  107/      FD :                     	
+(1)  108/      FD :                     	; Clear ALL VRAM
+(1)  109/      FD : 21 00 40            		ld	hl,4000h		; Clear screen
+(1)  110/     100 : 0E BF               		ld	c,vdp_ctrl
+(1)  111/     102 : ED 69               		out	(c),l
+(1)  112/     104 : ED 61               		out	(c),h
+(1)  113/     106 : 21 00 40            		ld	hl,4000h
+(1)  114/     109 : 0E BE               		ld	c,vdp_data
+(1)  115/     10B :                     .clrscrn:
+(1)  116/     10B : AF                  		xor	a
+(1)  117/     10C : ED 79               		out	(c),a
+(1)  118/     10E : 2B                  		dec 	hl
+(1)  119/     10F : 7C                  		ld	a,h
+(1)  120/     110 : B5                  		or	l
+(1)  121/     111 : C2 0B 01            		jp	nz,.clrscrn
+(1)  122/     114 : C9                  		ret
+(1)  123/     115 :                     		
+(1)  124/     115 :                     ; --------------------------------------------------------
+(1)  125/     115 :                     ; Video_LoadPal
+(1)  126/     115 :                     ; 
+(1)  127/     115 :                     ; Load GAME GEAR palette to VDP, auto-converts for
+(1)  128/     115 :                     ; Master System
+(1)  129/     115 :                     ;
+(1)  130/     115 :                     ; NOTE: Color dots will be shown on screen
+(1)  131/     115 :                     ; 
+(1)  132/     115 :                     ; Input:
+(1)  133/     115 :                     ; hl - Palette data
+(1)  134/     115 :                     ; b - Number of colors
+(1)  135/     115 :                     ; d - Start position
+(1)  136/     115 :                     ;
+(1)  137/     115 :                     ; Uses:
+(1)  138/     115 :                     ; hl,bc,de
+(1)  139/     115 :                     ; --------------------------------------------------------
+(1)  140/     115 :                     
+(1)  141/     115 :                     Video_LoadPal:
+(1)  142/     115 : 0E BE               		ld	c,vdp_data
+(1)  143/     117 : DB 00               		in	a,(gg_info)		; Check if we are in Game Gear
+(1)  144/     119 : E6 1F               		and	1Fh
+(1)  145/     11B : C2 2C 01            		jp	nz,.mark_ms
+(1)  146/     11E :                     
+(1)  147/     11E :                     	; Game Gear palette
+(1)  148/     11E : CB 20               		sla	b
+(1)  149/     120 : CB 22               		sla	d
+(1)  150/     122 : 7A                  		ld	a,d
+(1)  151/     123 : D3 BF               		out	(vdp_ctrl),a
+(1)  152/     125 : 3E C0               		ld	a,0C0h
+(1)  153/     127 : D3 BF               		out	(vdp_ctrl),a
+(1)  154/     129 : ED B3               		otir				; out (hl) to the port at C, increment hl, decrement b
+(1)  155/     12B : C9                  		ret
+(1)  156/     12C :                     
+(1)  157/     12C :                     	; GG to MS convertion
+(1)  158/     12C :                     .mark_ms:
+(1)  159/     12C : 0E BF               		ld	c,vdp_ctrl
+(1)  160/     12E : 3E C0               		ld	a,0C0h
+(1)  161/     130 : ED 51               		out	(c),d
+(1)  162/     132 : ED 79               		out	(c),a
+(1)  163/     134 :                     .loopms:
+(1)  164/     134 : 7E                  		ld	a,(hl)
+(1)  165/     135 : CB 2F               		sra	a
+(1)  166/     137 : CB 2F               		sra	a
+(1)  167/     139 : E6 03               		and	11b
+(1)  168/     13B : 57                  		ld	d,a
+(1)  169/     13C : 7E                  		ld	a,(hl)
+(1)  170/     13D : 1F                  		rra
+(1)  171/     13E : 1F                  		rra
+(1)  172/     13F : 1F                  		rra
+(1)  173/     140 : 1F                  		rra
+(1)  174/     141 : E6 0C               		and	1100b
+(1)  175/     143 : 5F                  		ld	e,a
+(1)  176/     144 : 23                  		inc	hl
+(1)  177/     145 : 7E                  		ld	a,(hl)
+(1)  178/     146 : 17                  		rla
+(1)  179/     147 : 17                  		rla
+(1)  180/     148 : E6 30               		and	110000b
+(1)  181/     14A : B2                  		or	d
+(1)  182/     14B : B3                  		or	e
+(1)  183/     14C : 23                  		inc	hl
+(1)  184/     14D :                     
+(1)  185/     14D : D3 BE               		out	(vdp_data),a
+(1)  186/     14F : 10 E3               		djnz	.loopms
+(1)  187/     151 : C9                  		ret
+(1)  188/     152 :                     
+(1)  189/     152 :                     ; --------------------------------------------------------
+(1)  190/     152 :                     ; Video_LoadArt
+(1)  191/     152 :                     ; 
+(1)  192/     152 :                     ; Load graphics to VRAM
+(1)  193/     152 :                     ;
+(1)  194/     152 :                     ; Input:
+(1)  195/     152 :                     ; hl - Art data
+(1)  196/     152 :                     ; de - Size
+(1)  197/     152 :                     ; bc - VRAM (cell)
+(1)  198/     152 :                     ; --------------------------------------------------------
+(1)  199/     152 :                     
+(1)  200/     152 :                     Video_LoadArt:
+(1)  201/     152 : 78                  		ld	a,b		; Multiply VRAM >> 5
+(1)  202/     153 : 0F                  		rrca
+(1)  203/     154 : 0F                  		rrca
+(1)  204/     155 : 0F                  		rrca
+(1)  205/     156 : E6 20               		and	00100000b
+(1)  206/     158 : 47                  		ld	b,a
+(1)  207/     159 : 79                  		ld	a,c
+(1)  208/     15A : 0F                  		rrca
+(1)  209/     15B : 0F                  		rrca
+(1)  210/     15C : 0F                  		rrca
+(1)  211/     15D : E6 1F               		and	00011111b
+(1)  212/     15F : B0                  		or	b
+(1)  213/     160 : F6 40               		or	40h		; VRAM write mode
+(1)  214/     162 : 47                  		ld	b,a
+(1)  215/     163 : 79                  		ld	a,c
+(1)  216/     164 : E6 07               		and	00000111b
+(1)  217/     166 : 0F                  		rrca
+(1)  218/     167 : 0F                  		rrca
+(1)  219/     168 : 0F                  		rrca
+(1)  220/     169 : 0E BF               		ld	c,vdp_ctrl
+(1)  221/     16B : ED 79               		out	(c),a		; a - 00xx
+(1)  222/     16D : ED 41               		out	(c),b		; b - xx00
+(1)  223/     16F :                     
+(1)  224/     16F :                     	; start
+(1)  225/     16F : 0E BE               		ld	c,vdp_data
+(1)  226/     171 :                     .loop:
+(1)  227/     171 : ED A3               		outi
+(1)  228/     173 : 1B                  		dec 	de
+(1)  229/     174 : 7B                  		ld	a,e
+(1)  230/     175 : B2                  		or	d
+(1)  231/     176 : C2 71 01            		jp	nz,.loop
+(1)  232/     179 : C9                  		ret
+(1)  233/     17A :                     
+(1)  234/     17A :                     ; --------------------------------------------------------
+(1)  235/     17A :                     ; Video_Print
+(1)  236/     17A :                     ; 
+(1)  237/     17A :                     ; Print text on screen
+(1)  238/     17A :                     ; Note: doesn't check for OOB
+(1)  239/     17A :                     ; 
+(1)  240/     17A :                     ; Input:
+(1)  241/     17A :                     ; ix - String data
+(1)  242/     17A :                     ; bc - X pos | Y pos
+(1)  243/     17A :                     ; 
+(1)  244/     17A :                     ; Uses
+(1)  245/     17A :                     ; de,hl,iy
+(1)  246/     17A :                     ; --------------------------------------------------------
+(1)  247/     17A :                     
+(1)  248/     17A :                     Video_Print:
+(1)  249/     17A : C5                  		push	bc
+(1)  250/     17B : D5                  		push	de
+(1)  251/     17C : E5                  		push	hl
+(1)  252/     17D : FD E5               		push	iy
+(1)  253/     17F :                     
+(1)  254/     17F : FD 21 38 C1         		ld	iy,RAM_VidPrntList
+(1)  255/     183 : 21 00 38            		ld	hl,3800h
+(1)  256/     186 : DB 00               		in	a,(gg_info)
+(1)  257/     188 : E6 1F               		and	1Fh
+(1)  258/     18A : C2 8F 01            		jp	nz,.nocent
+(1)  259/     18D : 2E CC               		ld	l,0CCh
+(1)  260/     18F :                     .nocent:
+(1)  261/     18F : 11 00 00            		ld	de,0
+(1)  262/     192 : 79                  		ld	a,c		; Y pos left
+(1)  263/     193 : 0F                  		rrca	
+(1)  264/     194 : 0F                  		rrca
+(1)  265/     195 : E6 07               		and	07h
+(1)  266/     197 : 57                  		ld	d,a
+(1)  267/     198 : 78                  		ld	a,b		; X pos + Y pos right YYXXXXXXb
+(1)  268/     199 : E6 1F               		and	1Fh
+(1)  269/     19B : 87                  		add 	a,a
+(1)  270/     19C : 5F                  		ld	e,a
+(1)  271/     19D : 79                  		ld	a,c
+(1)  272/     19E : E6 03               		and	11b
+(1)  273/     1A0 : 0F                  		rrca
+(1)  274/     1A1 : 0F                  		rrca
+(1)  275/     1A2 : B3                  		or	e
+(1)  276/     1A3 : 5F                  		ld	e,a
+(1)  277/     1A4 : 19                  		add 	hl,de
+(1)  278/     1A5 :                     
+(1)  279/     1A5 :                     	; X/Y pos goes here
+(1)  280/     1A5 : 0E BF               		ld	c,vdp_ctrl
+(1)  281/     1A7 : 7C                  		ld	a,h
+(1)  282/     1A8 : F6 40               		or	40h
+(1)  283/     1AA : 67                  		ld	h,a
+(1)  284/     1AB : ED 69               		out	(c),l
+(1)  285/     1AD : ED 61               		out	(c),h
+(1)  286/     1AF : 11 00 00            		ld	de,0
+(1)  287/     1B2 : 44                  		ld	b,h
+(1)  288/     1B3 : 4D                  		ld	c,l
+(1)  289/     1B4 :                     
+(1)  290/     1B4 :                     	; bc - curr position for values
+(1)  291/     1B4 :                     	; hl - curr position for jump
+(1)  292/     1B4 :                     .loop:
+(1)  293/     1B4 : DD 7E 00            		ld	a,(ix)
+(1)  294/     1B7 : DD 23               		inc	ix
+(1)  295/     1B9 : FE 0A               		cp	00Ah		; 00Ah - next line?
+(1)  296/     1BB : CA D8 01            		jp	z,.next
+(1)  297/     1BE : FE 5C               		cp	05Ch		; 05Ch ("\") special?
+(1)  298/     1C0 : CA E6 01            		jp	z,.special		
+(1)  299/     1C3 : B7                  		or	a		; Zero?
+(1)  300/     1C4 : CA 31 02            		jp	z,.exit
+(1)  301/     1C7 : E5                  		push	hl
+(1)  302/     1C8 : 2A 68 C1            		ld	hl,(RAM_VidPrntVram)
+(1)  303/     1CB : 5F                  		ld	e,a
+(1)  304/     1CC : 19                  		add	hl,de
+(1)  305/     1CD : 7D                  		ld	a,l
+(1)  306/     1CE : D3 BE               		out	(vdp_data),a
+(1)  307/     1D0 : 7C                  		ld	a,h
+(1)  308/     1D1 : D3 BE               		out	(vdp_data),a
+(1)  309/     1D3 : E1                  		pop	hl
+(1)  310/     1D4 : 03                  		inc 	bc		; Next pos for values
+(1)  311/     1D5 : 03                  		inc 	bc
+(1)  312/     1D6 : 18 DC               		jr	.loop
+(1)  313/     1D8 :                     
+(1)  314/     1D8 :                     ; Next line
+(1)  315/     1D8 :                     .next:
+(1)  316/     1D8 : 11 40 00            		ld	de,40h		; TL add line
+(1)  317/     1DB : 19                  		add 	hl,de
+(1)  318/     1DC : 44                  		ld	b,h		; Save pos to value beam
+(1)  319/     1DD : 4D                  		ld	c,l
+(1)  320/     1DE : 7D                  		ld	a,l		; Reset position with new
+(1)  321/     1DF : D3 BF               		out	(vdp_ctrl),a
+(1)  322/     1E1 : 7C                  		ld	a,h
+(1)  323/     1E2 : D3 BF               		out	(vdp_ctrl),a
+(1)  324/     1E4 : 18 CE               		jr	.loop
+(1)  325/     1E6 :                     ; Special
+(1)  326/     1E6 :                     .special:
+(1)  327/     1E6 : DD 7E 00            		ld	a,(ix)
+(1)  328/     1E9 : DD 23               		inc	ix
+(1)  329/     1EB : FE 62               		cp	"b"		; Byte?
+(1)  330/     1ED : CA 15 02            		jp	z,.breq
+(1)  331/     1F0 : FE 77               		cp	"w"		; Word?
+(1)  332/     1F2 : C2 B4 01            		jp	nz,.loop
+(1)  333/     1F5 :                     ; word
+(1)  334/     1F5 : FD 71 00            		ld	(iy),c		; Set address
+(1)  335/     1F8 : FD 70 01            		ld	(iy+1),b
+(1)  336/     1FB : FD 36 02 02         		ld	(iy+2),2	; Set request
+(1)  337/     1FF : FD 23               		inc 	iy		; Next entry
+(1)  338/     201 : FD 23               		inc 	iy
+(1)  339/     203 : FD 23               		inc 	iy
+(1)  340/     205 : 03                  		inc 	bc		; Four cells
+(1)  341/     206 : 03                  		inc 	bc
+(1)  342/     207 : 03                  		inc 	bc
+(1)  343/     208 : 03                  		inc 	bc
+(1)  344/     209 : 03                  		inc 	bc
+(1)  345/     20A : 03                  		inc 	bc
+(1)  346/     20B : 03                  		inc 	bc
+(1)  347/     20C : 03                  		inc 	bc
+(1)  348/     20D : 79                  		ld	a,c
+(1)  349/     20E : D3 BF               		out	(vdp_ctrl),a
+(1)  350/     210 : 78                  		ld	a,b
+(1)  351/     211 : D3 BF               		out	(vdp_ctrl),a
+(1)  352/     213 : 18 9F               		jr	.loop
+(1)  353/     215 :                     ; byte
+(1)  354/     215 :                     .breq:
+(1)  355/     215 : FD 71 00            		ld	(iy),c		; Set address
+(1)  356/     218 : FD 70 01            		ld	(iy+1),b
+(1)  357/     21B : FD 36 02 01         		ld	(iy+2),1	; Set request
+(1)  358/     21F : FD 23               		inc 	iy		; Next entry
+(1)  359/     221 : FD 23               		inc 	iy
+(1)  360/     223 : FD 23               		inc 	iy
+(1)  361/     225 : 03                  		inc 	bc		; Two cells
+(1)  362/     226 : 03                  		inc 	bc
+(1)  363/     227 : 03                  		inc 	bc
+(1)  364/     228 : 03                  		inc 	bc
+(1)  365/     229 : 79                  		ld	a,c
+(1)  366/     22A : D3 BF               		out	(vdp_ctrl),a
+(1)  367/     22C : 78                  		ld	a,b
+(1)  368/     22D : D3 BF               		out	(vdp_ctrl),a
+(1)  369/     22F : 18 83               		jr	.loop
+(1)  370/     231 :                     .exit:
+(1)  371/     231 :                     
+(1)  372/     231 :                     ; ------------------------------------------------
+(1)  373/     231 :                     ; Print values
+(1)  374/     231 :                     ; check MAX_PRNTLIST for maximum values
+(1)  375/     231 :                     ; 
+(1)  376/     231 :                     ; vvvv tt
+(1)  377/     231 :                     ; v - vdp pos
+(1)  378/     231 :                     ; t - value type
+(1)  379/     231 :                     ; ------------------------------------------------
+(1)  380/     231 :                     
+(1)  381/     231 : FD 21 38 C1         		ld	iy,RAM_VidPrntList
+(1)  382/     235 :                     .loopval:
+(1)  383/     235 : FD 7E 00            		ld	a,(iy)
+(1)  384/     238 : FD 46 01            		ld	b,(iy+1)
+(1)  385/     23B : B7                  		or	a
+(1)  386/     23C : CA 79 02            		jp	z,.endval
+(1)  387/     23F : 4F                  		ld	c,a
+(1)  388/     240 :                     
+(1)  389/     240 :                     	; Check byte
+(1)  390/     240 : FD 7E 02            		ld	a,(iy+2)
+(1)  391/     243 : FE 01               		cp	1
+(1)  392/     245 : C2 51 02            		jp	nz,.nobyte
+(1)  393/     248 : DD 6E 00            		ld	l,(ix)
+(1)  394/     24B : DD 66 01            		ld	h,(ix+1)
+(1)  395/     24E : CD 7F 02            		call	.put_byte
+(1)  396/     251 :                     .nobyte:
+(1)  397/     251 : FD 7E 02            		ld	a,(iy+2)
+(1)  398/     254 : FE 02               		cp	2
+(1)  399/     256 : C2 66 02            		jp	nz,.noword
+(1)  400/     259 : DD 6E 00            		ld	l,(ix)
+(1)  401/     25C : DD 66 01            		ld	h,(ix+1)
+(1)  402/     25F : CD 7F 02            		call	.put_byte
+(1)  403/     262 : 23                  		inc 	hl
+(1)  404/     263 : CD 7F 02            		call	.put_byte
+(1)  405/     266 :                     .noword:
+(1)  406/     266 :                     
+(1)  407/     266 : AF                  		xor	a		; Clear current entry 
+(1)  408/     267 : FD 77 00            		ld	(iy),a		; and move to next
+(1)  409/     26A : FD 77 01            		ld	(iy+1),a
+(1)  410/     26D : FD 77 02            		ld	(iy+2),a
+(1)  411/     270 : FD 23               		inc 	iy
+(1)  412/     272 : FD 23               		inc 	iy
+(1)  413/     274 : FD 23               		inc 	iy
+(1)  414/     276 : C3 35 02            		jp	.loopval
+(1)  415/     279 :                     .endval:	
+(1)  416/     279 : FD E1               		pop	iy
+(1)  417/     27B : E1                  		pop	hl
+(1)  418/     27C : D1                  		pop	de
+(1)  419/     27D : C1                  		pop	bc
+(1)  420/     27E : C9                  		ret
+(1)  421/     27F :                     
+(1)  422/     27F :                     ; draw nibble
+(1)  423/     27F :                     .put_byte:
+(1)  424/     27F : 7E                  		ld	a,(hl)
+(1)  425/     280 : 0F                  		rrca
+(1)  426/     281 : 0F                  		rrca
+(1)  427/     282 : 0F                  		rrca
+(1)  428/     283 : 0F                  		rrca
+(1)  429/     284 : CD 88 02            		call	.do_nibbl
+(1)  430/     287 : 7E                  		ld	a,(hl)
+(1)  431/     288 :                     .do_nibbl:
+(1)  432/     288 : E5                  		push	hl
+(1)  433/     289 : 21 00 00            		ld	hl,0
+(1)  434/     28C : E6 0F               		and 	0Fh
+(1)  435/     28E : FE 0A               		cp	0Ah
+(1)  436/     290 : DA 95 02            		jp	c,.noadd
+(1)  437/     293 : C6 07               		add 	a,7
+(1)  438/     295 :                     .noadd:
+(1)  439/     295 : 6F                  		ld	l,a
+(1)  440/     296 : ED 5B 68 C1         		ld	de,(RAM_VidPrntVram)	; Start at font VRAM
+(1)  441/     29A : 19                  		add 	hl,de
+(1)  442/     29B : 11 30 00            		ld	de,30h			; at char 0
+(1)  443/     29E : 19                  		add 	hl,de
+(1)  444/     29F : 79                  		ld	a,c			; mark vdp pos
+(1)  445/     2A0 : D3 BF               		out	(vdp_ctrl),a
+(1)  446/     2A2 : 78                  		ld	a,b
+(1)  447/     2A3 : D3 BF               		out	(vdp_ctrl),a
+(1)  448/     2A5 : 03                  		inc 	bc			; next layer cell
+(1)  449/     2A6 : 03                  		inc 	bc
+(1)  450/     2A7 : 7D                  		ld	a,l			; put vram value
+(1)  451/     2A8 : D3 BE               		out 	(vdp_data),a
+(1)  452/     2AA : 7C                  		ld	a,h
+(1)  453/     2AB : D3 BE               		out	(vdp_data),a
+(1)  454/     2AD : E1                  		pop	hl
+(1)  455/     2AE : C9                  		ret
+(1)  456/     2AF :                     		
+(1)  457/     2AF :                     ; ====================================================================
+(1)  458/     2AF :                     ; --------------------------------------------------------
+(1)  459/     2AF :                     ; Video data
+(1)  460/     2AF :                     ; --------------------------------------------------------
+(1)  461/     2AF :                     
+(1)  462/     2AF :                     list_vdpregs:
+(1)  463/     2AF : 06                  		db      00000110b       ; ---H---- | H-Hint
+(1)  464/     2B0 : E2                  		db      11100010b       ; -DV---W- | D-Display ON / V-Vint / W-8x16 sprites
+(1)  465/     2B1 : FF                  		db      11111111b       ;
+(1)  466/     2B2 : FF                  		db      11111111b       ;
+(1)  467/     2B3 : FF                  		db      11111111b       ;
+(1)  468/     2B4 : FF                  		db      11111111b       ;
+(1)  469/     2B5 : 04                  		db      00000100b       ; -----S-- | S-Sprite VRAM Page: 0000h/0100h
+(1)  470/     2B6 : 00                  		db      00000000b       ;
+(1)  471/     2B7 : 00                  		db      00000000b       ;
+(1)  472/     2B8 : 00                  		db      00000000b       ;
+(1)  473/     2B9 : 00                  		db      00000000b       ;
+(1)  474/     2BA :                     
+(1)  475/     2BA :                     Art_PrintFont:	binclude "system/data/art_prntfont.bin"
+(1)  476/     EBA :                     Art_PrintFont_e:
+(1)  477/     EBA :                     Pal_PrintFont:;	binclude "system/data/pal_prntfont.bin"
+(1)  478/     EBA : 00 00 EE 0E CC 0C   		dw 0000h,0EEEh,0CCCh,0AAAh,0888h,0444h,000Eh,0008h
+                    AA 0A 88 08 44 04 
+                    0E 00 08 00 
+(1)  479/     ECA : EE 00 88 00 E0 00   		dw 00EEh,0088h,00E0h,0080h,0E00h,0800h,0000h,0000h
+                    80 00 00 0E 00 08 
+                    00 00 00 00 
+(1)  480/     EDA :                     
+      67/     EDA :                     		include "system/setup.asm"	; System
+(1)    1/     EDA :                     ; ====================================================================
+(1)    2/     EDA :                     ; ----------------------------------------------------------------
+(1)    3/     EDA :                     ; System
+(1)    4/     EDA :                     ; ----------------------------------------------------------------
+(1)    5/     EDA :                     
+(1)    6/     EDA :                     ; ----------------------------------------------------------------
+(1)    7/     EDA :                     ; System RAM
+(1)    8/     EDA :                     ; ----------------------------------------------------------------
+(1)    9/     EDA :                     
+(1)   10/     EDA : (MACRO)             		struct RAM_MsSystem
+(1)   10/     EDA : =EDAH               GLBL_LASTPC     eval $
+(1)   10/     EDA : =EDAH               GLBL_LASTORG    eval $
+(1)   10/     EDA :                                     dephase
+(1)   10/    C239 :                                     phase RAM_MSSYSTEM
+(1)   11/    C239 :                     RAM_InputData	ds sizeof_input*2		; 2 controller buffers
+(1)   12/    C23D :                     RAM_MkHint	ds 3				; VBlank jump
+(1)   13/    C240 :                     RAM_MkVint	ds 3				; HBlank jump
+(1)   14/    C243 :                     RAM_MkPause	ds 3				; Pause button jump
+(1)   15/    C246 :                     sizeof_mssys	ds 1
+(1)   16/    C247 : (MACRO)             		finish
+(1)   16/    C239 :                                     !org GLBL_LASTORG
+(1)   16/     EDA :                                     phase GLBL_LASTPC
+(1)   17/     EDA :                     
+(1)   18/     EDA :                     ; --------------------------------------------------------
+(1)   19/     EDA :                     ; Init System
+(1)   20/     EDA :                     ; --------------------------------------------------------
+(1)   21/     EDA :                     
+(1)   22/     EDA :                     System_Init:
+(1)   23/     EDA :                     	;Clear WORK RAM ($C001 to $DFEF)
+(1)   24/     EDA : 21 00 C0            		ld      hl,0C000h  		; hl - System RAM
+(1)   25/     EDD : 11 01 C0            		ld      de,0C001h  		; de - (System RAM + 1)
+(1)   26/     EE0 : 01 00 10            		ld      bc,01000h  		; bc - Bytes to copy
+(1)   27/     EE3 : 36 00               		ld      (hl),0			; Set $00 at first byte of RAM before copying bytes
+(1)   28/     EE5 : ED B0               		ldir				; read (RAM), write to (RAM+1), increment de, hl and decrement bc
+(1)   29/     EE7 :                     
+(1)   30/     EE7 : DB 00               		in	a,(gg_info)		; Read Game Gear extra bits
+(1)   31/     EE9 : E6 1F               		and	1Fh			; only grab 5 bits
+(1)   32/     EEB : C2 F9 0E            		jp	nz,.not_gg		; If not Zero, don't set extra gg regs
+(1)   33/     EEE : 3E FF               		ld      a,11111111b   		; all ones
+(1)   34/     EF0 : D3 02               		out     (gg_ext_bitdir),a   	; set i/o port 2h (read/write) to all ones
+(1)   35/     EF2 : D3 06                               out 	(gg_stereo),a		; gg psg stereo full
+(1)   36/     EF4 : AF                  		xor     a         		; set a to zero
+(1)   37/     EF5 : D3 01               		out     (gg_ext_comm),a   	; set i/o port 1h to zero
+(1)   38/     EF7 : D3 05               		out     (gg_serial),a   	; set i/o port 5h to zero
+(1)   39/     EF9 :                     .not_gg:
+(1)   40/     EF9 : AF                  		xor     a         		; set a to zero
+(1)   41/     EFA : 32 FC FF            		ld      (bank_ctrl),a		; set bank control register to all zeros
+(1)   42/     EFD : 32 FD FF            		ld      (bank_0),a		; set bank reg #0 to all zeros
+(1)   43/     F00 : 3C                  		inc	a
+(1)   44/     F01 : 32 FE FF            		ld      (bank_1),a		; set bank reg #1 to 0001
+(1)   45/     F04 : 3C                  		inc	a
+(1)   46/     F05 : 32 FF FF            		ld      (bank_2),a		; set bank reg #2 to 0010
+(1)   47/     F08 :                     		
+(1)   48/     F08 : 3E C3               		ld	a,0C3h
+(1)   49/     F0A : 32 40 C2            		ld	(RAM_MkVint),a
+(1)   50/     F0D : 32 40 C2            		ld	(RAM_MkVint),a
+(1)   51/     F10 : 01 5F 0F            		ld	bc,MS_VInt
+(1)   52/     F13 : 11 76 0F            		ld	de,MS_HInt
+(1)   53/     F16 : ED 43 41 C2         		ld	(RAM_MkVint+1),bc
+(1)   54/     F1A : ED 53 41 C2         		ld	(RAM_MkVint+1),de
+(1)   55/     F1E : C9                  		ret
+(1)   56/     F1F :                     
+(1)   57/     F1F :                     ; ====================================================================
+(1)   58/     F1F :                     ; ----------------------------------------------------------------
+(1)   59/     F1F :                     ; System subroutines
+(1)   60/     F1F :                     ; ----------------------------------------------------------------
+(1)   61/     F1F :                     
+(1)   62/     F1F :                     ; --------------------------------------------------------
+(1)   63/     F1F :                     ; System_VSync
+(1)   64/     F1F :                     ; 
+(1)   65/     F1F :                     ; Wait for VBlank
+(1)   66/     F1F :                     ; --------------------------------------------------------
+(1)   67/     F1F :                     
+(1)   68/     F1F :                     System_VSync:
+(1)   69/     F1F : DB BF               		in	a,(vdp_ctrl)		; Read VDP Control
+(1)   70/     F21 : E6 80               		and	10000000b		; Get VBlank bit
+(1)   71/     F23 : CA 1F 0F            		jp	z,System_VSync		; if Zero, keep waiting
+(1)   72/     F26 : C9                  		ret
+(1)   73/     F27 :                     		
+(1)   74/     F27 :                     ; --------------------------------------------------------
+(1)   75/     F27 :                     ; System_Input
+(1)   76/     F27 :                     ; 
+(1)   77/     F27 :                     ; WARNING: Don't call this outside of VBLANK
+(1)   78/     F27 :                     ; (call System_VSync first)
+(1)   79/     F27 :                     ; 
+(1)   80/     F27 :                     ; Uses:
+(1)   81/     F27 :                     ; hl,bc
+(1)   82/     F27 :                     ; --------------------------------------------------------
+(1)   83/     F27 :                     
+(1)   84/     F27 :                     System_Input:
+(1)   85/     F27 :                      
+(1)   86/     F27 :                     ; ---------------------------
+(1)   87/     F27 :                     ; Read current controllers
+(1)   88/     F27 :                     ; ---------------------------
+(1)   89/     F27 :                     
+(1)   90/     F27 : 21 39 C2            		ld	hl,RAM_InputData	; hl - Input data stored in RAM
+(1)   91/     F2A :                     
+(1)   92/     F2A :                     	; Controller 1
+(1)   93/     F2A : 06 00               		ld	b,0			; b = 0
+(1)   94/     F2C : DB 00               		in	a,(gg_info)		; Read GG port 00h (START button and region)
+(1)   95/     F2E : 4F                  		ld	c,a			; Copy result to c
+(1)   96/     F2F : E6 1F               		and	1Fh			; only read right 5 bits
+(1)   97/     F31 : C2 39 0F            		jp	nz,.no_ggstrt		; if != 0, skip this
+(1)   98/     F34 : 79                  		ld	a,c			; move our copy to a
+(1)   99/     F35 : 2F                  		cpl				; reverse bits
+(1)  100/     F36 : E6 80               		and	80h			; only read the MSB
+(1)  101/     F38 : 47                  		ld	b,a			; b = Start button bit press
+(1)  102/     F39 :                     .no_ggstrt:
+(1)  103/     F39 : DB DC               		in      a,(joypad_1)		; Read controller 1 port
+(1)  104/     F3B : 2F                  		cpl				; Reverse bits
+(1)  105/     F3C : E6 3F               		and	00111111b		; Only grab 0012RLDU 
+(1)  106/     F3E : B0                  		or	b			; Merge GG start button if available S012RLDU
+(1)  107/     F3F : 47                  		ld	b,a			; Copy input from a to b
+(1)  108/     F40 : 7E                   		ld	a,(hl)			; Read OLD holding bits from RAM
+(1)  109/     F41 : A8                   		xor	b			; XOR with NEW holding bits, now a contains pressed bits
+(1)  110/     F42 : 70                  		ld	(hl),b			; Save NEW holding press to RAM
+(1)  111/     F43 : 23                  		inc	hl			; Next RAM byte
+(1)  112/     F44 : A0                  		and	b			; Only allow holding bits to pass on pressed bits
+(1)  113/     F45 : 77                  		ld	(hl),a			; Save pressed bits to RAM
+(1)  114/     F46 : 23                  		inc 	hl			; Next controller
+(1)  115/     F47 :                      
+(1)  116/     F47 :                     	; Controller 2
+(1)  117/     F47 : DB DC               		in      a,(joypad_1)		; Read controller 1 port again (for P2's Down/Up)
+(1)  118/     F49 : 2F                  		cpl				; Reverse bits, DU??????
+(1)  119/     F4A : 07                  		rlca				; U?????D
+(1)  120/     F4B : 07                  		rlca				; ?????DU
+(1)  121/     F4C : E6 03               		and	11b			; 00000DU
+(1)  122/     F4E : 47                  		ld	b,a			; Save copy to b
+(1)  123/     F4F : DB DD               		in      a,(joypad_2)		; Read controller 2 port (for 2/1/Right/Left)
+(1)  124/     F51 : 2F                  		cpl				; Reverse bits, ????21RL
+(1)  125/     F52 : 07                  		rlca				; ???21RL?
+(1)  126/     F53 : 07                  		rlca				; ??21RL??
+(1)  127/     F54 : E6 3C               		and	00111100b		; 0021RL00
+(1)  128/     F56 : B0                  		or	b			; Combine results: 0021RLDU
+(1)  129/     F57 : 47                  		ld	b,a			; Copy input from a to b
+(1)  130/     F58 : 7E                   		ld	a,(hl)			; Read OLD holding bits from RAM
+(1)  131/     F59 : A8                   		xor	b			; XOR with NEW holding bits, now a contains pressed bits
+(1)  132/     F5A : 70                  		ld	(hl),b			; Save NEW holding press to RAM
+(1)  133/     F5B : 23                  		inc	hl			; Next RAM byte
+(1)  134/     F5C : A0                  		and	b			; Only allow holding bits to pass on pressed bits
+(1)  135/     F5D : 77                  		ld	(hl),a			; Save pressed bits to RAM
+(1)  136/     F5E : C9                  		ret
+(1)  137/     F5F :                     		
+(1)  138/     F5F :                     ; ====================================================================
+(1)  139/     F5F :                     ; ----------------------------------------------------------------
+(1)  140/     F5F :                     ; Default VBlank
+(1)  141/     F5F :                     ; ----------------------------------------------------------------
+(1)  142/     F5F :                     
+(1)  143/     F5F :                     MS_VInt:
+(1)  144/     F5F : DD E5               		push	ix
+(1)  145/     F61 : FD E5               		push	iy
+(1)  146/     F63 : C5                  		push	bc
+(1)  147/     F64 : D5                  		push	de
+(1)  148/     F65 : E5                  		push	hl
+(1)  149/     F66 :                     
+(1)  150/     F66 : CD 27 0F            		call	System_Input
+(1)  151/     F69 : CD 84 00            		call	Sound_Run
+(1)  152/     F6C :                     
+(1)  153/     F6C : E1                  		pop	hl
+(1)  154/     F6D : D1                  		pop	de
+(1)  155/     F6E : C1                  		pop	bc
+(1)  156/     F6F : FD E1               		pop	iy
+(1)  157/     F71 : DD E1               		pop	ix
+(1)  158/     F73 : C3 79 0F            		jp	Int_Exit
+(1)  159/     F76 :                     
+(1)  160/     F76 :                     ; ====================================================================
+(1)  161/     F76 :                     ; ----------------------------------------------------------------
+(1)  162/     F76 :                     ; Default HBlank
+(1)  163/     F76 :                     ; ----------------------------------------------------------------
+(1)  164/     F76 :                     
+(1)  165/     F76 :                     MS_HInt:
+(1)  166/     F76 : C3 79 0F            		jp	Int_Exit
+(1)  167/     F79 :                     
+(1)  168/     F79 :                     ; ----------------------------------------------------------------
+(1)  169/     F79 :                     ; Jump here on exit...
+(1)  170/     F79 :                     
+(1)  171/     F79 :                     Int_Exit:
+(1)  172/     F79 : F1                  		pop	af
+(1)  173/     F7A : FB                  		ei
+(1)  174/     F7B : C9                  		ret
+(1)  175/     F7C :                     
+      68/     F7C :                     
+      69/     F7C :                     ; ====================================================================
+      70/     F7C :                     ; ----------------------------------------------------------------
+      71/     F7C :                     ; MS Start
+      72/     F7C :                     ; ----------------------------------------------------------------
+      73/     F7C :                     
+      74/     F7C :                     		align 400h
+      75/    1000 :                     MS_Init:
+      76/    1000 : 31 F0 DF            		ld	sp,0DFF0h		; Stacks starts at 0DFF0h, goes backwards
+      77/    1003 : CD DA 0E            		call	System_Init		; Init System
+      78/    1006 : CD 69 00            		call	Sound_Init		; Init Sound
+      79/    1009 : CD 8F 00            		call	Video_Init		; Init Video
+      80/    100C :                     
+      81/    100C :                     ; ================================================================
+      82/    100C :                     ; ------------------------------------------------------------
+      83/    100C :                     ; Your code starts here
+      84/    100C :                     ; ------------------------------------------------------------
+      85/    100C :                     
+      86/    100C :                     		align 400h
+      87/    1400 :                     CodeBank0:
+      88/    1400 :                     		include	"code/main.asm"
+(1)    1/    1400 :                     ; ====================================================================
+(1)    2/    1400 :                     ; ----------------------------------------------------------------
+(1)    3/    1400 :                     ; Structs
+(1)    4/    1400 :                     ; ----------------------------------------------------------------
+(1)    5/    1400 :                     
+(1)    6/    1400 : (MACRO)             		struct 0
+(1)    6/    1400 : =1400H              GLBL_LASTPC     eval $
+(1)    6/    1400 : =1400H              GLBL_LASTORG    eval $
+(1)    6/    1400 :                                     dephase
+(1)    6/       0 :                                     phase 0
+(1)    7/       0 :                     plyr_x		ds 2
+(1)    8/       2 :                     plyr_y		ds 2
+(1)    9/       4 :                     plyr_frame	ds 1
+(1)   10/       5 :                     plyr_ani_timer	ds 1
+(1)   11/       6 :                     plyr_ani_cntr 	ds 1
+(1)   12/       7 : (MACRO)             		finish
+(1)   12/       0 :                                     !org GLBL_LASTORG
+(1)   12/    1400 :                                     phase GLBL_LASTPC
+(1)   13/    1400 :                     
+(1)   14/    1400 : (MACRO)             		struct RAM_Local
+(1)   14/    1400 : =1400H              GLBL_LASTPC     eval $
+(1)   14/    1400 : =1400H              GLBL_LASTORG    eval $
+(1)   14/    1400 :                                     dephase
+(1)   14/    C246 :                                     phase RAM_LOCAL
+(1)   15/    C246 :                     RAM_CurrTrack	ds 1
+(1)   16/    C247 :                     RAM_CurrSelect	ds 1
+(1)   17/    C248 : (MACRO)             		finish
+(1)   17/    C246 :                                     !org GLBL_LASTORG
+(1)   17/    1400 :                                     phase GLBL_LASTPC
+(1)   18/    1400 :                     
+(1)   19/    1400 :                     ; ====================================================================
+(1)   20/    1400 :                     ; ----------------------------------------------------------------
+(1)   21/    1400 :                     ; Main
+(1)   22/    1400 :                     ; ----------------------------------------------------------------
+(1)   23/    1400 :                     
+(1)   24/    1400 : F3                  		di
+(1)   25/    1401 : CD A9 00            		call	Video_InitPrint
+(1)   26/    1404 :                     	; Init settings
+(1)   27/    1404 : AF                  		xor	a
+(1)   28/    1405 : 32 46 C2            		ld	(RAM_CurrTrack),a
+(1)   29/    1408 : 32 47 C2            		ld	(RAM_CurrSelect),a
+(1)   30/    140B :                     	; Load assets
+(1)   31/    140B : 21 DA 15            		ld	hl,pal_FontNew
+(1)   32/    140E : 06 20               		ld	b,32
+(1)   33/    1410 : 16 00               		ld	d,0
+(1)   34/    1412 : CD 15 01            		call	Video_LoadPal
+(1)   35/    1415 :                     	; Print text
+(1)   37/    1415 : DD 21 6D 15         		ld	ix,str_TitlGG
+(1)   38/    1419 : 01 02 01            		ld	bc,0102h
+(1)   43/    141C : CD 7A 01            		call	Video_Print
+(1)   44/    141F : CD 77 14            		call	.show_cursor
+(1)   45/    1422 : CD 8D 14            		call	.show_values
+(1)   46/    1425 : FB                  		ei
+(1)   47/    1426 :                     .loop:
+(1)   48/    1426 :                     ; 		call	System_VSync
+(1)   49/    1426 : CD 27 0F            		call	System_Input
+(1)   50/    1429 :                     ; 		call	Sound_Run
+(1)   51/    1429 :                     
+(1)   52/    1429 :                     	; Right/Left
+(1)   53/    1429 : 3A 3A C2            		ld	a,(Controller_1+on_press)
+(1)   54/    142C : 5F                  		ld	e,a
+(1)   55/    142D : DD 21 46 C2         		ld	ix,RAM_CurrTrack
+(1)   56/    1431 : CB 5B               		bit	bitJoyRight,e
+(1)   57/    1433 : 28 06               		jr	z,.n_right
+(1)   58/    1435 : DD 34 00            		inc	(ix)
+(1)   59/    1438 : CD 8D 14            		call	.show_values
+(1)   60/    143B :                     .n_right:
+(1)   61/    143B : CB 53               		bit	bitJoyLeft,e
+(1)   62/    143D : 28 0C               		jr	z,.n_left
+(1)   63/    143F : DD 7E 00            		ld	a,(ix)
+(1)   64/    1442 : B7                  		or	a
+(1)   65/    1443 : 28 06               		jr	z,.n_left
+(1)   66/    1445 : DD 35 00            		dec	(ix)
+(1)   67/    1448 : CD 8D 14            		call	.show_values
+(1)   68/    144B :                     .n_left:
+(1)   69/    144B :                     
+(1)   70/    144B :                     	; Down/Up
+(1)   71/    144B : 3A 3A C2            		ld	a,(Controller_1+on_press)
+(1)   72/    144E : 5F                  		ld	e,a
+(1)   73/    144F : DD 21 47 C2         		ld	ix,RAM_CurrSelect
+(1)   74/    1453 : CB 4B               		bit	bitJoyDown,e
+(1)   75/    1455 : 28 0D               		jr	z,.n_down
+(1)   76/    1457 : DD 7E 00            		ld	a,(ix)
+(1)   77/    145A : FE 06               		cp	06h		; LIMIT
+(1)   78/    145C : 28 06               		jr	z,.n_down
+(1)   79/    145E :                     ; 		jp	nc,.n_down
+(1)   80/    145E : DD 34 00            		inc	(ix)
+(1)   81/    1461 : CD 77 14            		call	.show_cursor
+(1)   82/    1464 :                     .n_down:
+(1)   83/    1464 : CB 43               		bit	bitJoyUp,e
+(1)   84/    1466 : 28 0C               		jr	z,.n_up
+(1)   85/    1468 : DD 7E 00            		ld	a,(ix)
+(1)   86/    146B : B7                  		or	a
+(1)   87/    146C : 28 06               		jr	z,.n_up
+(1)   88/    146E : DD 35 00            		dec	(ix)
+(1)   89/    1471 : CD 77 14            		call	.show_cursor
+(1)   90/    1474 :                     .n_up:
+(1)   91/    1474 :                     
+(1)   92/    1474 : C3 26 14            		jp	.loop
+(1)   93/    1477 :                     
+(1)   94/    1477 :                     ; show values
+(1)   95/    1477 :                     .show_cursor:
+(1)   96/    1477 : D5                  		push	de
+(1)   97/    1478 : DD E5               		push	ix
+(1)   98/    147A : DD 21 D4 15         		ld	ix,str_Cursor
+(1)  100/    147E : 01 05 01            		ld	bc,0105h
+(1)  104/    1481 : 3A 47 C2            		ld	a,(RAM_CurrSelect)
+(1)  105/    1484 : 81                  		add	a,c
+(1)  106/    1485 : 4F                  		ld	c,a
+(1)  107/    1486 : CD 7A 01            		call	Video_Print
+(1)  108/    1489 : DD E1               		pop	ix
+(1)  109/    148B : D1                  		pop	de
+(1)  110/    148C : C9                  		ret
+(1)  111/    148D :                     
+(1)  112/    148D :                     ; show values
+(1)  113/    148D :                     .show_values:
+(1)  114/    148D : D5                  		push	de
+(1)  115/    148E : DD E5               		push	ix
+(1)  116/    1490 : DD 21 46 C2         		ld	ix,RAM_CurrTrack
+(1)  117/    1494 : 11 70 01            		ld	de,140h+30h
+(1)  119/    1497 : 01 04 09            		ld	bc,0904h
+(1)  123/    149A : CD A1 14            		call	.this_val
+(1)  124/    149D : DD E1               		pop	ix
+(1)  125/    149F : D1                  		pop	de
+(1)  126/    14A0 : C9                  		ret
+(1)  127/    14A1 :                     
+(1)  128/    14A1 :                     ; ====================================================================
+(1)  129/    14A1 :                     ; ----------------------------------------------------------------
+(1)  130/    14A1 :                     ; Subs
+(1)  131/    14A1 :                     ; ----------------------------------------------------------------
+(1)  132/    14A1 :                     
+(1)  133/    14A1 :                     ; ; hl - RAM_PlyrCurrIds
+(1)  134/    14A1 :                     ;
+(1)  135/    14A1 :                     ; .modify_id:
+(1)  136/    14A1 :                     ; 		ld	a,(hl)
+(1)  137/    14A1 :                     ; 		add 	a,d
+(1)  138/    14A1 :                     ; ; 		and	00000011b
+(1)  139/    14A1 :                     ; 		ld	(hl),a
+(1)  140/    14A1 :                     ; 		ret
+(1)  141/    14A1 :                     ; .modify_select:
+(1)  142/    14A1 :                     ; 		ld	a,(RAM_CurrSelect)
+(1)  143/    14A1 :                     ; 		add 	a,d
+(1)  144/    14A1 :                     ; 		and	00000001b			; limit
+(1)  145/    14A1 :                     ; 		ld	(RAM_CurrSelect),a
+(1)  146/    14A1 :                     ; 		ret
+(1)  147/    14A1 :                     ; .modify_track:
+(1)  148/    14A1 :                     ; 		ld	a,(RAM_CurrTrack)
+(1)  149/    14A1 :                     ; 		add 	a,d
+(1)  150/    14A1 :                     ; 		and	00000001b
+(1)  151/    14A1 :                     ; 		ld	(RAM_CurrTrack),a
+(1)  152/    14A1 :                     ; 		ret
+(1)  153/    14A1 :                     ;
+(1)  154/    14A1 :                     ; .play_track:
+(1)  155/    14A1 :                     ; 		ld	a,(hl)
+(1)  156/    14A1 :                     ; 		ld	de,0
+(1)  157/    14A1 :                     ; 		add 	a,a
+(1)  158/    14A1 :                     ; 		add 	a,a
+(1)  159/    14A1 :                     ; 		add	a,a
+(1)  160/    14A1 :                     ; 		add	a,a
+(1)  161/    14A1 :                     ; 		ld	e,a
+(1)  162/    14A1 :                     ; 		ld	hl,trackData_test
+(1)  163/    14A1 :                     ; 		add 	hl,de
+(1)  164/    14A1 :                     ; 		ld	b,(hl)
+(1)  165/    14A1 :                     ; 		inc 	hl
+(1)  166/    14A1 :                     ; 		ld	c,(hl)
+(1)  167/    14A1 :                     ; 		inc 	hl
+(1)  168/    14A1 :                     ; 		ld	d,(hl)
+(1)  169/    14A1 :                     ; 		inc 	hl
+(1)  170/    14A1 :                     ; 		ld	e,(hl)
+(1)  171/    14A1 :                     ; 		inc 	hl
+(1)  172/    14A1 :                     ; 		ld	a,(RAM_CurrTrack)
+(1)  173/    14A1 :                     ; 		call	Sound_SetTrack
+(1)  174/    14A1 :                     ;
+(1)  175/    14A1 :                     ; 		ld	de,0
+(1)  176/    14A1 :                     ; 		ld	a,(RAM_CurrTrack)
+(1)  177/    14A1 :                     ; 		ld	e,a
+(1)  178/    14A1 :                     ; 		ld	hl,RAM_PlyrCurrVol
+(1)  179/    14A1 :                     ; 		add 	hl,de
+(1)  180/    14A1 :                     ; 		ld	c,(hl)
+(1)  181/    14A1 :                     ; 		jp	Sound_SetVolume
+(1)  182/    14A1 :                     ;
+(1)  183/    14A1 :                     ; .stop_track:
+(1)  184/    14A1 :                     ; 		ld	a,(RAM_CurrTrack)
+(1)  185/    14A1 :                     ; 		jp	Sound_StopTrack
+(1)  186/    14A1 :                     
+(1)  187/    14A1 :                     ; ----------------------------------------
+(1)  188/    14A1 :                     ; show current value
+(1)  189/    14A1 :                     .this_val:
+(1)  190/    14A1 : 21 00 38            		ld	hl,3800h
+(1)  191/    14A4 : DB 00               		in	a,(gg_info)
+(1)  192/    14A6 : E6 1F               		and	1Fh
+(1)  193/    14A8 : C2 AD 14            		jp	nz,.nocent
+(1)  194/    14AB : 2E CC               		ld	l,0CCh
+(1)  195/    14AD :                     .nocent:
+(1)  196/    14AD : D5                  		push	de
+(1)  197/    14AE : 11 00 00            		ld	de,0
+(1)  198/    14B1 : 79                  		ld	a,c		; Y pos left
+(1)  199/    14B2 : 0F                  		rrca	
+(1)  200/    14B3 : 0F                  		rrca
+(1)  201/    14B4 : E6 07               		and	07h
+(1)  202/    14B6 : 57                  		ld	d,a
+(1)  203/    14B7 : 78                  		ld	a,b		; X pos + Y pos right YYXXXXXXb
+(1)  204/    14B8 : E6 1F               		and	1Fh
+(1)  205/    14BA : 87                  		add 	a,a
+(1)  206/    14BB : 5F                  		ld	e,a
+(1)  207/    14BC : 79                  		ld	a,c
+(1)  208/    14BD : E6 03               		and	11b
+(1)  209/    14BF : 0F                  		rrca
+(1)  210/    14C0 : 0F                  		rrca
+(1)  211/    14C1 : B3                  		or	e
+(1)  212/    14C2 : 5F                  		ld	e,a
+(1)  213/    14C3 : 19                  		add 	hl,de
+(1)  214/    14C4 : D1                  		pop	de
+(1)  215/    14C5 :                     
+(1)  216/    14C5 :                     	; X/Y pos goes here
+(1)  217/    14C5 : 0E BF               		ld	c,vdp_ctrl
+(1)  218/    14C7 : 7C                  		ld	a,h
+(1)  219/    14C8 : F6 40               		or	40h
+(1)  220/    14CA : 67                  		ld	h,a
+(1)  221/    14CB : ED 69               		out	(c),l
+(1)  222/    14CD : ED 61               		out	(c),h
+(1)  223/    14CF :                     
+(1)  224/    14CF : 0E BE               		ld	c,vdp_data
+(1)  225/    14D1 : 21 00 00            		ld	hl,0
+(1)  226/    14D4 : DD 7E 00            		ld	a,(ix)
+(1)  227/    14D7 : 0F                  		rrca
+(1)  228/    14D8 : 0F                  		rrca
+(1)  229/    14D9 : 0F                  		rrca
+(1)  230/    14DA : 0F                  		rrca
+(1)  231/    14DB : E6 0F               		and	00001111b
+(1)  232/    14DD : FE 0A               		cp	0Ah
+(1)  233/    14DF : DA E4 14            		jp	c,.no_A1
+(1)  234/    14E2 : C6 07               		add 	a,7
+(1)  235/    14E4 :                     .no_A1:
+(1)  236/    14E4 : 6F                  		ld	l,a
+(1)  237/    14E5 : 19                  		add 	hl,de
+(1)  238/    14E6 : ED 69               		out	(c),l
+(1)  239/    14E8 : ED 61               		out	(c),h
+(1)  240/    14EA :                     
+(1)  241/    14EA : 21 00 00            		ld	hl,0
+(1)  242/    14ED : DD 7E 00            		ld	a,(ix)
+(1)  243/    14F0 : E6 0F               		and	00001111b
+(1)  244/    14F2 : FE 0A               		cp	0Ah
+(1)  245/    14F4 : DA F9 14            		jp	c,.no_A2
+(1)  246/    14F7 : C6 07               		add 	a,7
+(1)  247/    14F9 :                     .no_A2:
+(1)  248/    14F9 : 6F                  		ld	l,a
+(1)  249/    14FA : 19                  		add 	hl,de
+(1)  250/    14FB : ED 69               		out	(c),l
+(1)  251/    14FD : ED 61               		out	(c),h
+(1)  252/    14FF : C9                  		ret
+(1)  253/    1500 :                     
+(1)  254/    1500 :                     ; ====================================================================
+(1)  255/    1500 :                     ; ----------------------------------------------------------------
+(1)  256/    1500 :                     ; Small data
+(1)  257/    1500 :                     ; ----------------------------------------------------------------
+(1)  258/    1500 :                     
+(1)  259/    1500 : 47 45 4D 41 2F 4E   str_TitlMk:	db "GEMA/Nikona sound driver",0Ah
+                    69 6B 6F 6E 61 20 
+                    73 6F 75 6E 64 20 
+                    64 72 69 76 65 72 
+                    0A 
+(1)  260/    1519 : 0A                  		db 0Ah
+(1)  261/    151A : 54 72 61 63 6B 49   		db "TrackID",0Ah
+                    44 0A 
+(1)  262/    1522 : 0A                  		db 0Ah
+(1)  263/    1523 : 20 20 67 65 6D 61   		db "  gemaPlayTrack",0Ah
+                    50 6C 61 79 54 72 
+                    61 63 6B 0A 
+(1)  264/    1533 : 20 20 67 65 6D 61   		db "  gemaStopTrack",0Ah
+                    53 74 6F 70 54 72 
+                    61 63 6B 0A 
+(1)  265/    1543 : 20 20 67 65 6D 61   		db "  gemaStopAll",0Ah
+                    53 74 6F 70 41 6C 
+                    6C 0A 
+(1)  266/    1551 : 20 20 3F 3F 3F 3F   		db "  ????",0Ah
+                    0A 
+(1)  267/    1558 : 20 20 3F 3F 3F 3F   		db "  ????",0Ah
+                    0A 
+(1)  268/    155F : 20 20 3F 3F 3F 3F   		db "  ????",0Ah
+                    0A 
+(1)  269/    1566 : 20 20 3F 3F 3F 3F   		db "  ????",0
+                    00 
+(1)  270/    156D :                     str_TitlGG:
+(1)  271/    156D : 47 45 4D 41 2F 4E   		db "GEMA/Nikona driver",0Ah
+                    69 6B 6F 6E 61 20 
+                    64 72 69 76 65 72 
+                    0A 
+(1)  272/    1580 : 0A                  		db 0Ah
+(1)  273/    1581 : 54 72 61 63 6B 49   		db "TrackID",0Ah
+                    44 0A 
+(1)  274/    1589 : 0A                  		db 0Ah
+(1)  275/    158A : 20 20 67 65 6D 61   		db "  gemaPlayTrack",0Ah
+                    50 6C 61 79 54 72 
+                    61 63 6B 0A 
+(1)  276/    159A : 20 20 67 65 6D 61   		db "  gemaStopTrack",0Ah
+                    53 74 6F 70 54 72 
+                    61 63 6B 0A 
+(1)  277/    15AA : 20 20 67 65 6D 61   		db "  gemaStopAll",0Ah
+                    53 74 6F 70 41 6C 
+                    6C 0A 
+(1)  278/    15B8 : 20 20 3F 3F 3F 3F   		db "  ????",0Ah
+                    0A 
+(1)  279/    15BF : 20 20 3F 3F 3F 3F   		db "  ????",0Ah
+                    0A 
+(1)  280/    15C6 : 20 20 3F 3F 3F 3F   		db "  ????",0Ah
+                    0A 
+(1)  281/    15CD : 20 20 3F 3F 3F 3F   		db "  ????",0
+                    00 
+(1)  282/    15D4 :                     str_Cursor:
+(1)  283/    15D4 : 20 0A               		db " ",0Ah
+(1)  284/    15D6 : 3E 0A               		db ">",0Ah
+(1)  285/    15D8 : 20 00               		db " ",0
+(1)  286/    15DA :                     
+(1)  287/    15DA :                     pal_FontNew:
+(1)  288/    15DA : 00 00 EE 0E CC 0C   		dw 0000h,0EEEh,0CCCh,0AAAh,0888h,0444h,000Eh,0008h
+                    AA 0A 88 08 44 04 
+                    0E 00 08 00 
+(1)  289/    15EA : EE 00 88 00 E0 00   		dw 00EEh,0088h,00E0h,0080h,0E00h,0800h,0000h,0000h
+                    80 00 00 0E 00 08 
+                    00 00 00 00 
+(1)  290/    15FA : 00 00 AE 00 8C 00   		dw 0000h,00AEh,008Ch,006Ah,0048h,0024h,000Eh,0008h
+                    6A 00 48 00 24 00 
+                    0E 00 08 00 
+(1)  291/    160A : EE 00 88 00 E0 00   		dw 00EEh,0088h,00E0h,0080h,0E00h,0800h,0000h,0000h
+                    80 00 00 0E 00 08 
+                    00 00 00 00 
+(1)  292/    161A :                     ; trackData_test:
+(1)  293/    161A :                     ; 		db DataBank0>>14
+(1)  294/    161A :                     ; 		db 0
+(1)  295/    161A :                     ; 		db 0
+(1)  296/    161A :                     ; 		db 3
+(1)  297/    161A :                     ; 		dw MusicBlk_TestMe
+(1)  298/    161A :                     ; 		dw MusicPat_TestMe
+(1)  299/    161A :                     ; 		dw MusicIns_TestMe
+(1)  300/    161A :                     ; 		dw 0,0
+(1)  301/    161A :                     ; 		dw 0
+(1)  302/    161A :                     ;
+(1)  303/    161A :                     ; 		db DataBank0>>14
+(1)  304/    161A :                     ; 		db 0
+(1)  305/    161A :                     ; 		db 0
+(1)  306/    161A :                     ; 		db 2
+(1)  307/    161A :                     ; 		dw MusicBlk_Gigalo
+(1)  308/    161A :                     ; 		dw MusicPat_Gigalo
+(1)  309/    161A :                     ; 		dw MusicIns_Gigalo
+(1)  310/    161A :                     ; 		dw 0,0
+(1)  311/    161A :                     ; 		dw 0
+(1)  312/    161A :                     ;
+(1)  313/    161A :                     ; 		db DataBank0>>14
+(1)  314/    161A :                     ; 		db 0
+(1)  315/    161A :                     ; 		db 0
+(1)  316/    161A :                     ; 		db 3
+(1)  317/    161A :                     ; 		dw MusicBlk_TestMe
+(1)  318/    161A :                     ; 		dw MusicPat_TestMe
+(1)  319/    161A :                     ; 		dw MusicIns_TestMe
+(1)  320/    161A :                     ; 		dw 0,0
+(1)  321/    161A :                     ; 		dw 0
+(1)  322/    161A :                     ;
+(1)  323/    161A :                     ; 		db DataBank0>>14
+(1)  324/    161A :                     ; 		db 0
+(1)  325/    161A :                     ; 		db 0
+(1)  326/    161A :                     ; 		db 3
+(1)  327/    161A :                     ; 		dw MusicBlk_TestMe
+(1)  328/    161A :                     ; 		dw MusicPat_TestMe
+(1)  329/    161A :                     ; 		dw MusicIns_TestMe
+(1)  330/    161A :                     ; 		dw 0,0
+(1)  331/    161A :                     ; 		dw 0
+(1)  332/    161A :                     
+      89/    161A :                     		include	"data/bank_0.asm"
+(1)    1/    161A :                     ; ====================================================================
+(1)    2/    161A :                     ; ----------------------------------------------------------------
+(1)    3/    161A :                     ; 
+(1)    4/    161A :                     ; ----------------------------------------------------------------
+(1)    5/    161A :                     
+(1)    6/    161A : 47 41 4D 45 20 44   		db "GAME DATA GOES HERE"
+                    41 54 41 20 47 4F 
+                    45 53 20 48 45 52 
+                    45 
+(1)    7/    162D :                     
+(1)    8/    162D :                     
+(1)    9/    162D :                     
+      90/    162D :                     CodeBank0_e:
+      94/    162D :                     	
+      95/    162D :                     ; ====================================================================
+      96/    162D :                     ; DEFAULT BANK 1
+      97/    162D :                     ; 4000-7FFFh
+      98/    162D :                     ; ====================================================================
+      99/    162D :                     		
+     100/    162D :                     		align 4000h
+     101/    4000 :                     DataBank0:
+     102/    4000 :                     		include	"sound/tracks.asm"
+(1)    1/    4000 :                     ; ================================================================
+(1)    2/    4000 :                     ; ------------------------------------------------------------
+(1)    3/    4000 :                     ; DATA SECTION
+(1)    4/    4000 :                     ;
+(1)    5/    4000 :                     ; SOUND
+(1)    6/    4000 :                     ; ------------------------------------------------------------
+(1)    7/    4000 :                     
+(1)    8/    4000 :                     ; ticks - %tttttttt
+(1)    9/    4000 :                     ;   loc - pointer
+(1)   10/    4000 :                     ;
+(1)   11/    4000 :                     ; t-Ticks
+(1)   12/    4000 :                     ; g-Use global tempo
+(1)   13/    4000 :                     gemaTrk macro ticks,loc
+(1)   14/    4000 :                     	db ticks
+(1)   15/    4000 :                     	db 0
+(1)   16/    4000 :                     	dw loc
+(1)   17/    4000 :                     	endm
+(1)   18/    4000 :                     
+(1)   19/    4000 :                     ; gemaHead
+(1)   20/    4000 :                     ; block point, patt point, ins point
+(1)   21/    4000 :                     ; numof_blocks,numof_patts,numof_ins
+(1)   22/    4000 :                     gemaHead macro blk,pat,ins
+(1)   23/    4000 :                     	dw blk
+(1)   24/    4000 :                     	dw pat
+(1)   25/    4000 :                     	dw ins
+(1)   26/    4000 :                     	endm
+(1)   27/    4000 :                     
+(1)   28/    4000 :                     ; Instrument macros
+(1)   29/    4000 :                     ; do note that some 24-bit pointers add 90h to the MSB automaticly.
+(1)   30/    4000 :                     gInsNull macro
+(1)   31/    4000 :                     	db 00h,00h,00h,00h
+(1)   32/    4000 :                     	db 00h,00h,00h,00h
+(1)   33/    4000 :                     	endm
+(1)   34/    4000 :                     
+(1)   35/    4000 :                     ; alv: attack level
+(1)   36/    4000 :                     ; atk: attack rate
+(1)   37/    4000 :                     ; slv: sustain
+(1)   38/    4000 :                     ; dky: decay rate (up)
+(1)   39/    4000 :                     ; rrt: release rate (down)
+(1)   40/    4000 :                     ; vib: (TODO)
+(1)   41/    4000 :                     gInsPsg	macro pitch,alv,atk,slv,dky,rrt,vib
+(1)   42/    4000 :                     	db 80h,pitch,alv,atk
+(1)   43/    4000 :                     	db slv,dky,rrt,vib
+(1)   44/    4000 :                     	endm
+(1)   45/    4000 :                     
+(1)   46/    4000 :                     ; same args as gInsPsg
+(1)   47/    4000 :                     ; only one more argument for the noise type:
+(1)   48/    4000 :                     ; mode: noise mode
+(1)   49/    4000 :                     ;       %tmm
+(1)   50/    4000 :                     ;        t  - Bass(0)|Noise(1)
+(1)   51/    4000 :                     ;         mm- Clock(0)|Clock/2(1)|Clock/4(2)|Tone3(3)
+(1)   52/    4000 :                     ;
+(1)   53/    4000 :                     gInsPsgN macro pitch,alv,atk,slv,dky,rrt,vib,mode
+(1)   54/    4000 :                     	db 90h|mode,pitch,alv,atk
+(1)   55/    4000 :                     	db slv,dky,rrt,vib
+(1)   56/    4000 :                     	endm
+(1)   57/    4000 :                     
+(1)   58/    4000 :                     ; ; 24-bit ROM pointer to FM patch data
+(1)   59/    4000 :                     ; gInsFm macro pitch,fmins
+(1)   60/    4000 :                     ; 	dc.b $A0,pitch,((fmins>>16)&$FF),((fmins>>8)&$FF)
+(1)   61/    4000 :                     ; 	dc.b fmins&$FF,00h,00h,00h
+(1)   62/    4000 :                     ; 	endm
+(1)   63/    4000 :                     
+(1)   64/    4000 :                     ; ; Same args as gInsFm, but the last 4 words of the data
+(1)   65/    4000 :                     ; ; are the custom freqs for each operator in this order:
+(1)   66/    4000 :                     ; ; OP1 OP2 OP3 OP4
+(1)   67/    4000 :                     ; ;
+(1)   68/    4000 :                     ; ; NOTE: pitch is useless here...
+(1)   69/    4000 :                     ; gInsFm3	macro pitch,fmins
+(1)   70/    4000 :                     ; 	dc.b $B0,pitch,((fmins>>16)&$FF),((fmins>>8)&$FF)
+(1)   71/    4000 :                     ; 	dc.b fmins&$FF,00h,00h,00h
+(1)   72/    4000 :                     ; 	endm
+(1)   73/    4000 :                     ;
+(1)   74/    4000 :                     ; ; start: Pointer to sample data:
+(1)   75/    4000 :                     ; ;        dc.b end,end,end	; 24-bit LENGTH of the sample
+(1)   76/    4000 :                     ; ;        dc.b loop,loop,loop	; 24-bit Loop point
+(1)   77/    4000 :                     ; ;        dc.b (sound data)	; <-- Then the actual sound data
+(1)   78/    4000 :                     ; ;
+(1)   79/    4000 :                     ; ; flags: 00h - No Loop
+(1)   80/    4000 :                     ; ; 	 $01 - Loop
+(1)   81/    4000 :                     ; gInsDac	macro pitch,start,flags
+(1)   82/    4000 :                     ; 	dc.b $C0|flags,pitch,((start>>16)&$FF),((start>>8)&$FF)
+(1)   83/    4000 :                     ; 	dc.b start&$FF,0,0,0
+(1)   84/    4000 :                     ; 	endm
+(1)   85/    4000 :                     
+(1)   86/    4000 :                     ; ; start: Pointer to sample data:
+(1)   87/    4000 :                     ; ;        dc.b end,end,end	; 24-bit LENGTH of the sample
+(1)   88/    4000 :                     ; ;        dc.b loop,loop,loop	; 24-bit Loop point
+(1)   89/    4000 :                     ; ;        dc.b (data)		; Then the actual sound data
+(1)   90/    4000 :                     ; ;
+(1)   91/    4000 :                     ; ; flags: %00SL
+(1)   92/    4000 :                     ; ;            L - Loop sample No/Yes
+(1)   93/    4000 :                     ; ;           S  - Sample data is on STEREO
+(1)   94/    4000 :                     ; gInsPwm	macro pitch,start,flags
+(1)   95/    4000 :                     ;  if MARS
+(1)   96/    4000 :                     ; 	dc.b $D0|flags,pitch,((start>>24)&$FF),((start>>16)&$FF)
+(1)   97/    4000 :                     ; 	dc.b ((start>>8)&$FF),start&$FF,0,0
+(1)   98/    4000 :                     ;  else
+(1)   99/    4000 :                     ; 	dc.b 00h,00h,00h,00h
+(1)  100/    4000 :                     ; 	dc.b 00h,00h,00h,00h
+(1)  101/    4000 :                     ;  endif
+(1)  102/    4000 :                     ; 	endm
+(1)  103/    4000 :                     
+(1)  104/    4000 :                     ; ------------------------------------------------------------
+(1)  105/    4000 :                     
+(1)  106/    4000 :                     ; 	align $8000
+(1)  107/    4000 :                     
+(1)  108/    4000 :                     ; ------------------------------------------------------------
+(1)  109/    4000 :                     ; Nikona MAIN track-list
+(1)  110/    4000 :                     ;
+(1)  111/    4000 :                     ; ONLY the ticks can be set here.
+(1)  112/    4000 :                     ; You can change the ticks mid-track using effect A
+(1)  113/    4000 :                     ;
+(1)  114/    4000 :                     ; Add $80 to the ticks value to use the GLOBAL
+(1)  115/    4000 :                     ; sub-beats
+(1)  116/    4000 :                     ;
+(1)  117/    4000 :                     ; To set the sub-beats send the SetBeats command
+(1)  118/    4000 :                     ; BEFORE playing your track:
+(1)  119/    4000 :                     ; 	move.w	#new_beats,d0
+(1)  120/    4000 :                     ; 	bsr	gemaSetBeats
+(1)  121/    4000 :                     ; 	move.w	#track_id,d0
+(1)  122/    4000 :                     ;	bsr	gemaPlayTrack
+(1)  123/    4000 :                     ; ------------------------------------------------------------
+(1)  124/    4000 :                     
+(1)  125/    4000 :                     Gema_MasterList:
+(1)  126/    4000 : (MACRO)             	gemaTrk 3,GemaTrk_TEST_3	; Ticks, Track pointer (Default tempo: 150/120)
+(1)  126/    4000 : 03                          db 3
+(1)  126/    4001 : 00                          db 0
+(1)  126/    4002 : 80 40                       dw GEMATRK_TEST_3
+(1)  127/    4004 : (MACRO)             	gemaTrk 3,GemaTrk_TEST_4
+(1)  127/    4004 : 03                          db 3
+(1)  127/    4005 : 00                          db 0
+(1)  127/    4006 : 44 59                       dw GEMATRK_TEST_4
+(1)  128/    4008 : (MACRO)             	gemaTrk 3,GemaTrk_TEST_5
+(1)  128/    4008 : 03                          db 3
+(1)  128/    4009 : 00                          db 0
+(1)  128/    400A : 5A 6E                       dw GEMATRK_TEST_5
+(1)  129/    400C : (MACRO)             	gemaTrk 3,GemaTrk_TEST_0
+(1)  129/    400C : 03                          db 3
+(1)  129/    400D : 00                          db 0
+(1)  129/    400E : A0 76                       dw GEMATRK_TEST_0
+(1)  130/    4010 : (MACRO)             	gemaTrk 3,GemaTrk_TEST_0
+(1)  130/    4010 : 03                          db 3
+(1)  130/    4011 : 00                          db 0
+(1)  130/    4012 : A0 76                       dw GEMATRK_TEST_0
+(1)  131/    4014 : (MACRO)             	gemaTrk 3,GemaTrk_TEST_0
+(1)  131/    4014 : 03                          db 3
+(1)  131/    4015 : 00                          db 0
+(1)  131/    4016 : A0 76                       dw GEMATRK_TEST_0
+(1)  132/    4018 : (MACRO)             	gemaTrk 3,GemaTrk_TEST_0
+(1)  132/    4018 : 03                          db 3
+(1)  132/    4019 : 00                          db 0
+(1)  132/    401A : A0 76                       dw GEMATRK_TEST_0
+(1)  133/    401C : (MACRO)             	gemaTrk 3,GemaTrk_TEST_3
+(1)  133/    401C : 03                          db 3
+(1)  133/    401D : 00                          db 0
+(1)  133/    401E : 80 40                       dw GEMATRK_TEST_3
+(1)  134/    4020 : (MACRO)             	gemaTrk 3,GemaTrk_TEST_4
+(1)  134/    4020 : 03                          db 3
+(1)  134/    4021 : 00                          db 0
+(1)  134/    4022 : 44 59                       dw GEMATRK_TEST_4
+(1)  135/    4024 : (MACRO)             	gemaTrk 3,GemaTrk_TEST_5
+(1)  135/    4024 : 03                          db 3
+(1)  135/    4025 : 00                          db 0
+(1)  135/    4026 : 5A 6E                       dw GEMATRK_TEST_5
+(1)  136/    4028 : (MACRO)             	gemaTrk 3,GemaTrk_TEST_0
+(1)  136/    4028 : 03                          db 3
+(1)  136/    4029 : 00                          db 0
+(1)  136/    402A : A0 76                       dw GEMATRK_TEST_0
+(1)  137/    402C : (MACRO)             	gemaTrk 3,GemaTrk_TEST_0
+(1)  137/    402C : 03                          db 3
+(1)  137/    402D : 00                          db 0
+(1)  137/    402E : A0 76                       dw GEMATRK_TEST_0
+(1)  138/    4030 : (MACRO)             	gemaTrk 3,GemaTrk_TEST_0
+(1)  138/    4030 : 03                          db 3
+(1)  138/    4031 : 00                          db 0
+(1)  138/    4032 : A0 76                       dw GEMATRK_TEST_0
+(1)  139/    4034 : (MACRO)             	gemaTrk 3,GemaTrk_TEST_0
+(1)  139/    4034 : 03                          db 3
+(1)  139/    4035 : 00                          db 0
+(1)  139/    4036 : A0 76                       dw GEMATRK_TEST_0
+(1)  140/    4038 : (MACRO)             	gemaTrk 3,GemaTrk_TEST_0
+(1)  140/    4038 : 03                          db 3
+(1)  140/    4039 : 00                          db 0
+(1)  140/    403A : A0 76                       dw GEMATRK_TEST_0
+(1)  141/    403C : (MACRO)             	gemaTrk 3,GemaTrk_TEST_0
+(1)  141/    403C : 03                          db 3
+(1)  141/    403D : 00                          db 0
+(1)  141/    403E : A0 76                       dw GEMATRK_TEST_0
+(1)  142/    4040 :                     
+(1)  143/    4040 : (MACRO)             	gemaTrk 3,GemaTrk_TEST_0
+(1)  143/    4040 : 03                          db 3
+(1)  143/    4041 : 00                          db 0
+(1)  143/    4042 : A0 76                       dw GEMATRK_TEST_0
+(1)  144/    4044 : (MACRO)             	gemaTrk 3,GemaTrk_TEST_0
+(1)  144/    4044 : 03                          db 3
+(1)  144/    4045 : 00                          db 0
+(1)  144/    4046 : A0 76                       dw GEMATRK_TEST_0
+(1)  145/    4048 : (MACRO)             	gemaTrk 3,GemaTrk_TEST_0
+(1)  145/    4048 : 03                          db 3
+(1)  145/    4049 : 00                          db 0
+(1)  145/    404A : A0 76                       dw GEMATRK_TEST_0
+(1)  146/    404C : (MACRO)             	gemaTrk 3,GemaTrk_TEST_0
+(1)  146/    404C : 03                          db 3
+(1)  146/    404D : 00                          db 0
+(1)  146/    404E : A0 76                       dw GEMATRK_TEST_0
+(1)  147/    4050 : (MACRO)             	gemaTrk 3,GemaTrk_TEST_0
+(1)  147/    4050 : 03                          db 3
+(1)  147/    4051 : 00                          db 0
+(1)  147/    4052 : A0 76                       dw GEMATRK_TEST_0
+(1)  148/    4054 : (MACRO)             	gemaTrk 3,GemaTrk_TEST_0
+(1)  148/    4054 : 03                          db 3
+(1)  148/    4055 : 00                          db 0
+(1)  148/    4056 : A0 76                       dw GEMATRK_TEST_0
+(1)  149/    4058 : (MACRO)             	gemaTrk 3,GemaTrk_TEST_0
+(1)  149/    4058 : 03                          db 3
+(1)  149/    4059 : 00                          db 0
+(1)  149/    405A : A0 76                       dw GEMATRK_TEST_0
+(1)  150/    405C : (MACRO)             	gemaTrk 3,GemaTrk_TEST_0
+(1)  150/    405C : 03                          db 3
+(1)  150/    405D : 00                          db 0
+(1)  150/    405E : A0 76                       dw GEMATRK_TEST_0
+(1)  151/    4060 : (MACRO)             	gemaTrk 3,GemaTrk_TEST_0
+(1)  151/    4060 : 03                          db 3
+(1)  151/    4061 : 00                          db 0
+(1)  151/    4062 : A0 76                       dw GEMATRK_TEST_0
+(1)  152/    4064 : (MACRO)             	gemaTrk 3,GemaTrk_TEST_0
+(1)  152/    4064 : 03                          db 3
+(1)  152/    4065 : 00                          db 0
+(1)  152/    4066 : A0 76                       dw GEMATRK_TEST_0
+(1)  153/    4068 : (MACRO)             	gemaTrk 3,GemaTrk_TEST_0
+(1)  153/    4068 : 03                          db 3
+(1)  153/    4069 : 00                          db 0
+(1)  153/    406A : A0 76                       dw GEMATRK_TEST_0
+(1)  154/    406C : (MACRO)             	gemaTrk 3,GemaTrk_TEST_0
+(1)  154/    406C : 03                          db 3
+(1)  154/    406D : 00                          db 0
+(1)  154/    406E : A0 76                       dw GEMATRK_TEST_0
+(1)  155/    4070 : (MACRO)             	gemaTrk 3,GemaTrk_TEST_0
+(1)  155/    4070 : 03                          db 3
+(1)  155/    4071 : 00                          db 0
+(1)  155/    4072 : A0 76                       dw GEMATRK_TEST_0
+(1)  156/    4074 : (MACRO)             	gemaTrk 3,GemaTrk_TEST_0
+(1)  156/    4074 : 03                          db 3
+(1)  156/    4075 : 00                          db 0
+(1)  156/    4076 : A0 76                       dw GEMATRK_TEST_0
+(1)  157/    4078 : (MACRO)             	gemaTrk 3,GemaTrk_TEST_0
+(1)  157/    4078 : 03                          db 3
+(1)  157/    4079 : 00                          db 0
+(1)  157/    407A : A0 76                       dw GEMATRK_TEST_0
+(1)  158/    407C : (MACRO)             	gemaTrk 3,GemaTrk_TEST_0
+(1)  158/    407C : 03                          db 3
+(1)  158/    407D : 00                          db 0
+(1)  158/    407E : A0 76                       dw GEMATRK_TEST_0
+(1)  159/    4080 :                     
+(1)  160/    4080 :                     ; ------------------------------------------------------------
+(1)  161/    4080 :                     ; BGM tracks
+(1)  162/    4080 :                     ; ------------------------------------------------------------
+(1)  163/    4080 :                     
+(1)  164/    4080 :                     GemaTrk_TEST_3:
+(1)  165/    4080 : (MACRO)             	gemaHead .blk,.pat,.ins
+(1)  165/    4080 : 86 40                       dw .BLK
+(1)  165/    4082 : 94 40                       dw .PAT
+(1)  165/    4084 : 24 59                       dw .INS
+(1)  166/    4086 :                     .blk:
+(1)  167/    4086 :                     	binclude "sound/tracks/gigalo_blk.bin"
+(1)  168/    4093 :                     	align 2
+(1)  169/    4094 :                     .pat:
+(1)  170/    4094 :                     	binclude "sound/tracks/gigalo_patt.bin"
+(1)  171/    5924 :                     	align 2
+(1)  172/    5924 :                     .ins:
+(1)  173/    5924 : (MACRO)             	gInsPsg 0,10h,04h,20h,06h,08h,00h
+(1)  173/    5924 : 80 00 10 04                 db 80h,0,10H,04H
+(1)  173/    5928 : 20 06 08 00                 db 20H,06H,08H,00H
+(1)  174/    592C : (MACRO)             	gInsPsgN 0,00h,00h,00h,04h,20h,00h,100b
+(1)  174/    592C : 94 00 00 00                 db 90h|100B,0,00H,00H
+(1)  174/    5930 : 00 04 20 00                 db 00H,04H,20H,00H
+(1)  175/    5934 : (MACRO)             	gInsPsgN 0,00h,00h,00h,04h,20h,00h,101b
+(1)  175/    5934 : 95 00 00 00                 db 90h|101B,0,00H,00H
+(1)  175/    5938 : 00 04 20 00                 db 00H,04H,20H,00H
+(1)  176/    593C : (MACRO)             	gInsPsgN 0,00h,00h,00h,04h,40h,00h,110b
+(1)  176/    593C : 96 00 00 00                 db 90h|110B,0,00H,00H
+(1)  176/    5940 : 00 04 40 00                 db 00H,04H,40H,00H
+(1)  177/    5944 :                     
+(1)  178/    5944 :                     GemaTrk_TEST_4:
+(1)  179/    5944 : (MACRO)             	gemaHead .blk,.pat,.ins
+(1)  179/    5944 : 4A 59                       dw .BLK
+(1)  179/    5946 : 5C 59                       dw .PAT
+(1)  179/    5948 : 42 6E                       dw .INS
+(1)  180/    594A :                     .blk:
+(1)  181/    594A :                     	binclude "sound/tracks/temple_blk.bin"
+(1)  182/    595C :                     	align 2
+(1)  183/    595C :                     .pat:
+(1)  184/    595C :                     	binclude "sound/tracks/temple_patt.bin"
+(1)  185/    6E42 :                     	align 2
+(1)  186/    6E42 :                     .ins:
+(1)  187/    6E42 : (MACRO)             	gInsPsg 0,00h,08h,20h,06h,03h,00h
+(1)  187/    6E42 : 80 00 00 08                 db 80h,0,00H,08H
+(1)  187/    6E46 : 20 06 03 00                 db 20H,06H,03H,00H
+(1)  188/    6E4A : (MACRO)             	gInsPsg 0,00h,00h,30h,04h,04h,00h
+(1)  188/    6E4A : 80 00 00 00                 db 80h,0,00H,00H
+(1)  188/    6E4E : 30 04 04 00                 db 30H,04H,04H,00H
+(1)  189/    6E52 : (MACRO)             	gInsPsgN 0,00h,30h,08h,10h,38h,01h,101b
+(1)  189/    6E52 : 95 00 00 30                 db 90h|101B,0,00H,30H
+(1)  189/    6E56 : 08 10 38 01                 db 08H,10H,38H,01H
+(1)  190/    6E5A :                     
+(1)  191/    6E5A :                     GemaTrk_TEST_5:
+(1)  192/    6E5A : (MACRO)             	gemaHead .blk,.pat,.ins
+(1)  192/    6E5A : 60 6E                       dw .BLK
+(1)  192/    6E5C : 68 6E                       dw .PAT
+(1)  192/    6E5E : 90 76                       dw .INS
+(1)  193/    6E60 :                     .blk:
+(1)  194/    6E60 :                     	binclude "sound/tracks/brinstr_blk.bin"
+(1)  195/    6E68 :                     	align 2
+(1)  196/    6E68 :                     .pat:
+(1)  197/    6E68 :                     	binclude "sound/tracks/brinstr_patt.bin"
+(1)  198/    768F :                     	align 2
+(1)  199/    7690 :                     .ins:
+(1)  200/    7690 : (MACRO)             	gInsPsg 0,40h,08h,20h,01h,04h,00h
+(1)  200/    7690 : 80 00 40 08                 db 80h,0,40H,08H
+(1)  200/    7694 : 20 01 04 00                 db 20H,01H,04H,00H
+(1)  201/    7698 : (MACRO)             	gInsPsgN 0,10h,08h,20h,02h,01h,00h,011b
+(1)  201/    7698 : 93 00 10 08                 db 90h|011B,0,10H,08H
+(1)  201/    769C : 20 02 01 00                 db 20H,02H,01H,00H
+(1)  202/    76A0 :                     
+(1)  203/    76A0 :                     ; ------------------------------------------------------------
+(1)  204/    76A0 :                     ; FIRST TRACK
+(1)  205/    76A0 :                     
+(1)  206/    76A0 :                     GemaTrk_TEST_0:
+(1)  207/    76A0 : (MACRO)             	gemaHead .blk,.pat,.ins
+(1)  207/    76A0 : A6 76                       dw .BLK
+(1)  207/    76A2 : A8 76                       dw .PAT
+(1)  207/    76A4 : DB 77                       dw .INS
+(1)  208/    76A6 :                     
+(1)  209/    76A6 :                     ; Max. 24 blocks
+(1)  210/    76A6 :                     .blk:
+(1)  211/    76A6 :                     	binclude "sound/tracks/test_blk.bin"
+(1)  212/    76A8 :                     ; Max. 24 patterns
+(1)  213/    76A8 :                     .pat:
+(1)  214/    76A8 :                     	binclude "sound/tracks/test_patt.bin"
+(1)  215/    77DB :                     
+(1)  216/    77DB :                     ; Max. 16 instruments
+(1)  217/    77DB :                     ; Starting from 1.
+(1)  218/    77DB :                     .ins:
+(1)  219/    77DB : (MACRO)             	gInsPsg 0,20h,20h,10h,00h,04h,0
+(1)  219/    77DB : 80 00 20 20                 db 80h,0,20H,20H
+(1)  219/    77DF : 10 00 04 00                 db 10H,00H,04H,0
+(1)  220/    77E3 : (MACRO)             	gInsPsgN +12,20h,20h,10h,00h,04h,0,011b
+(1)  220/    77E3 : 93 0C 20 20                 db 90h|011B,+12,20H,20H
+(1)  220/    77E7 : 10 00 04 00                 db 10H,00H,04H,0
+(1)  221/    77EB : (MACRO)             	gInsNull
+(1)  221/    77EB : 00 00 00 00                 db 00h,00h,00h,00h
+(1)  221/    77EF : 00 00 00 00                 db 00h,00h,00h,00h
+(1)  222/    77F3 : (MACRO)             	gInsNull
+(1)  222/    77F3 : 00 00 00 00                 db 00h,00h,00h,00h
+(1)  222/    77F7 : 00 00 00 00                 db 00h,00h,00h,00h
+(1)  223/    77FB : (MACRO)             	gInsNull
+(1)  223/    77FB : 00 00 00 00                 db 00h,00h,00h,00h
+(1)  223/    77FF : 00 00 00 00                 db 00h,00h,00h,00h
+(1)  224/    7803 : (MACRO)             	gInsNull
+(1)  224/    7803 : 00 00 00 00                 db 00h,00h,00h,00h
+(1)  224/    7807 : 00 00 00 00                 db 00h,00h,00h,00h
+(1)  225/    780B :                     
+     103/    780B :                     
+     104/    780B :                     DataBank0_e:
+     105/    780B :                     ; *** Header at the end of BANK 1
+     106/    780B :                     		align 7FF0h			; Align up to 7FF0h (almost at the end of BANK 1)
+     107/    7FF0 : 54 4D 52 20 53 45   		db "TMR SEGA  "			; TMR SEGA
+                    47 41 20 20 
+     108/    7FFA : 00 00               		dw 0				; Checksum *externally calculated*
+     109/    7FFC : 00 00               		dw 0				; Serial
+     110/    7FFE : 00                  		db 0				; Version
+     111/    7FFF : 4C                  		db 4Ch				; ROM size: 32k
+     112/    8000 :                     
+     116/    8000 :                     
+     117/    8000 :                     ; ====================================================================
+     118/    8000 :                     		
+     119/    8000 :                     ROM_END:	align 8000h
+     120/    8000 :                     
+ AS V1.42 Beta [Bld 118] - source file main.asm - page 2 - 3/10/2023 0:33:40
+
+
+  symbol table (* = unused):
+  ------------------------
+
+*ALV :                           24 - |
+*ARCHITECTURE :                                        x86_64-unknown-linux - |
+ ART_PRINTFONT :                2BA C |  ART_PRINTFONT_E :              EBA C |
+*ATK :                            8 - |  BANK_0 :                      FFFD - |
+ BANK_1 :                      FFFE - |  BANK_2 :                      FFFF - |
+ BANK_CTRL :                   FFFC - | *BIGENDIAN :                      0 - |
+*BITJOY1 :                        4 - | *BITJOY2 :                        5 - |
+ BITJOYDOWN :                     1 - |  BITJOYLEFT :                     2 - |
+ BITJOYRIGHT :                    3 - | *BITJOYSTART :                    7 - |
+ BITJOYUP :                       0 - | *BRANCHEXT :                      0 - |
+*CASESENSITIVE :                  0 - | *CHNL_CHIP :                      1 - |
+*CHNL_EFFARG :                    6 - | *CHNL_EFFID :                     5 - |
+*CHNL_FLAGS :                     0 - | *CHNL_INS :                       3 - |
+*CHNL_NOTE :                      2 - | *CHNL_TYPE :                      7 - |
+*CHNL_VOL :                       4 - | *CODEBANK0 :                   1400 C |
+*CODEBANK0_E :                 162D C | *COM :                            0 - |
+*COMMZFIFO :                   C0F0 C | *COMMZROMBLK :                 C131 C |
+*COMMZWRITE :                  C130 C | *CONSTPI :        3.141592653589793 - |
+ CONTROLLER_1 :                C239 - | *CONTROLLER_2 :                C23B - |
+*CURRTICKBITS :                C132 C | *DATABANK0 :                   4000 C |
+*DATABANK0_E :                 780B C | *DATE :                   3/10/2023 - |
+*DKY :                            C - | *DTH :                           20 - |
+*DTL :                           1C - | *FALSE :                          0 - |
+*FLG :                           28 - | *FULLPMMU :                       1 - |
+*GEMAPLAYTRACK :                 80 C | *GEMASETBEATS :                  83 C |
+*GEMASTOPALL :                   82 C | *GEMASTOPTRACK :                 81 C |
+*GEMATEST :                      7F C |  GEMATRK_TEST_0 :              76A0 C |
+ GEMATRK_TEST_0.BLK :          76A6 C |  GEMATRK_TEST_0.INS :          77DB C |
+ GEMATRK_TEST_0.PAT :          76A8 C |  GEMATRK_TEST_3 :              4080 C |
+ GEMATRK_TEST_3.BLK :          4086 C |  GEMATRK_TEST_3.INS :          5924 C |
+ GEMATRK_TEST_3.PAT :          4094 C |  GEMATRK_TEST_4 :              5944 C |
+ GEMATRK_TEST_4.BLK :          594A C |  GEMATRK_TEST_4.INS :          6E42 C |
+ GEMATRK_TEST_4.PAT :          595C C |  GEMATRK_TEST_5 :              6E5A C |
+ GEMATRK_TEST_5.BLK :          6E60 C |  GEMATRK_TEST_5.INS :          7690 C |
+ GEMATRK_TEST_5.PAT :          6E68 C | *GEMA_MASTERLIST :             4000 C |
+ GG_EXT_BITDIR :                  2 - |  GG_EXT_COMM :                    1 - |
+ GG_INFO :                        0 - |  GG_SERIAL :                      5 - |
+*GG_SERIAL_IN :                   4 - | *GG_SERIAL_OUT :                  3 - |
+ GG_STEREO :                      6 - |  GLBL_LASTORG :                1400 - |
+ GLBL_LASTPC :                 1400 - | *HAS64 :                          1 - |
+*HASDSP :                         0 - | *HASFPU :                         0 - |
+*HASPMMU :                        0 - | *INEXTMODE :                      0 - |
+*INLWORDMODE :                    0 - | *INMAXMODE :                      0 - |
+*INSRCMODE :                      0 - | *INSUPMODE :                      1 - |
+ INT_EXIT :                     F79 C | *JOY1 :                          10 - |
+*JOY2 :                          20 - | *JOYDOWN :                        2 - |
+*JOYLEFT :                        4 - |  JOYPAD_1 :                      DC - |
+ JOYPAD_2 :                      DD - | *JOYPAD_CTRL :                   3F - |
+*JOYRIGHT :                       8 - | *JOYUP :                          1 - |
+*LEV :                            4 - | *LISTON :                         3 - |
+ LIST_VDPREGS :                 2AF C | *MACEXP :                         7 - |
+ MAX_MSERAM :                  1000 - |  MAX_PRNTLIST :                  10 - |
+*MAX_TBLSIZE :                    4 - |  MAX_TRKCHN :                     4 - |
+*MEMORY_CTRL :                   3E - |  MERCURY :                        1 - |
+*MODE :                          18 - | *MOMCPU :                        80 - |
+*MOMCPUNAME :                   Z80 - |  MSRAM_START :                 C000 - |
+ MS_HINT :                      F76 C |  MS_INIT :                     1000 C |
+ MS_VINT :                      F5F C | *NESTMAX :                      100 - |
+*NIKONA_BUFFLIST :               85 C | *ON_HOLD :                        0 C |
+ ON_PRESS :                       1 C | *PACKING :                        0 - |
+*PADDING :                        1 - |  PAL_FONTNEW :                 15DA C |
+ PAL_PRINTFONT :                EBA C | *PARP :                          34 - |
+*PLYR_ANI_CNTR :                  6 C | *PLYR_ANI_TIMER :                 5 C |
+*PLYR_FRAME :                     4 C | *PLYR_X :                         0 C |
+*PLYR_Y :                         2 C | *PSGHATMODE :                  C137 C |
+ PSGSTEREO :                   C133 C |  PSG_CTRL :                      7F - |
+*PTMR :                          38 - | *PVOL :                          30 - |
+*PWCOM :                          0 - | *PWINSH :                        20 - |
+*PWINSL :                        30 - | *PWINSM :                        28 - |
+*PWOUTF :                        18 - | *PWPHL :                         10 - |
+*PWPTH_V :                        8 - |  RAM_CURRSELECT :              C247 C |
+ RAM_CURRSELECT.LOOP :         1426 C |  RAM_CURRSELECT.NOCENT :       14AD C |
+ RAM_CURRSELECT.NO_A1 :        14E4 C |  RAM_CURRSELECT.NO_A2 :        14F9 C |
+ RAM_CURRSELECT.N_DOWN :       1464 C |  RAM_CURRSELECT.N_LEFT :       144B C |
+ RAM_CURRSELECT.N_RIGHT :      143B C |  RAM_CURRSELECT.N_UP :         1474 C |
+ RAM_CURRSELECT.SHOW_CURSOR :  1477 C |  RAM_CURRSELECT.SHOW_VALUES :  148D C |
+ RAM_CURRSELECT.THIS_VAL :     14A1 C | *RAM_CURRSPRX :                C237 C |
+*RAM_CURRSPRY :                C235 C |  RAM_CURRTRACK :               C246 C |
+*RAM_GLBL_NULL :               D246 C |  RAM_GLOBAL :                  D246 C |
+ RAM_INPUTDATA :               C239 C |  RAM_LOCAL :                   C246 C |
+ RAM_MKHINT :                  C23D C | *RAM_MKPAUSE :                 C243 C |
+ RAM_MKVINT :                  C240 C |  RAM_MSSOUND :                 C000 C |
+ RAM_MSSYSTEM :                C239 C |  RAM_MSVIDEO :                 C138 C |
+*RAM_SPRTX :                   C1B5 C | *RAM_SPRTY :                   C175 C |
+ RAM_VDPCACHE :                C16A C |  RAM_VIDPRNTLIST :             C138 C |
+ RAM_VIDPRNTVRAM :             C168 C | *RELAXED :                        0 - |
+*ROM_END :                     8000 C | *RRT :                           14 - |
+ SIZEOF_GLOBAL :               D247 C |  SIZEOF_GLOBAL.VINT :            48 C |
+ SIZEOF_INPUT :                   2 C | *SIZEOF_MDRAM :                C005 C |
+*SIZEOF_MSRAM :                D247 C |  SIZEOF_MSSND :                C138 C |
+ SIZEOF_MSSYS :                C246 C |  SIZEOF_MSVID :                C239 C |
+*SLV :                           10 - |  SOUND_INIT :                    69 C |
+ SOUND_RUN :                     84 C |  STR_CURSOR :                  15D4 C |
+ STR_TITLGG :                  156D C | *STR_TITLMK :                  1500 C |
+ SYSTEM_INIT :                  EDA C |  SYSTEM_INIT.NOT_GG :           EF9 C |
+ SYSTEM_INPUT :                 F27 C |  SYSTEM_INPUT.NO_GGSTRT :       F39 C |
+ SYSTEM_VSYNC :                 F1F C | *TICKCNT :                     C136 C |
+*TICKFLAG :                    C135 C | *TICKSPSET :                   C134 C |
+*TIME :                     0:33:40 - | *TMR :                           2C - |
+ TRKBUFF_0 :                   C000 C |  TRKBUFF_1 :                   C030 C |
+*TRKBUFF_2 :                   C060 C |  TRKCHNL_0 :                   C090 C |
+ TRKCHNL_1 :                   C0B0 C | *TRKCHNL_2 :                   C0D0 C |
+*TRK_BLOCKS :                     4 - | *TRK_CACHHALF :                   E - |
+*TRK_CACHINC :                    F - | *TRK_CHNCACH :                   2E - |
+*TRK_CHNCBLK :                   28 - | *TRK_CHNCHEAD :                  2A - |
+*TRK_CHNCINS :                   2C - | *TRK_CHNLIST :                   26 - |
+*TRK_CURRBLK :                   12 - | *TRK_INSTR :                      8 - |
+*TRK_LASTBKBLK :                 16 - | *TRK_LASTBKHDRS :                17 - |
+*TRK_LASTBKINS :                 15 - | *TRK_MAXBLKS :                   1D - |
+*TRK_MAXCHNLS :                  1C - | *TRK_MAXHDRS :                   1E - |
+*TRK_MAXINS :                    1F - | *TRK_PANNING :                   13 - |
+*TRK_PATT :                       6 - | *TRK_PRIORITY :                  14 - |
+*TRK_READ :                       A - | *TRK_ROMCPATT :                  20 - |
+*TRK_ROMPATT :                   23 - | *TRK_ROWPAUSE :                  10 - |
+*TRK_ROWS :                       C - | *TRK_SEQID :                      1 - |
+*TRK_SETBLK :                     2 - | *TRK_STATUS :                     0 - |
+*TRK_TICKSET :                    3 - | *TRK_TICKTMR :                   11 - |
+*TRUE :                           1 - | *VARNULLVRAM :                  1FF - |
+ VDP_CTRL :                      BF - |  VDP_DATA :                      BE - |
+*VDP_PALETTE :                 C000 - | *VERSION :                     142F - |
+ VIDEO_CLEAR :                   E2 C |  VIDEO_CLEAR.CLRSCRN :          10B C |
+ VIDEO_CLEAR.MARK_MS :           ED C |  VIDEO_CLEAR.PAL_CLR :           F9 C |
+ VIDEO_INIT :                    8F C |  VIDEO_INIT.LOOP :               9C C |
+ VIDEO_INITPRINT :               A9 C |  VIDEO_LOADART :                152 C |
+ VIDEO_LOADART.LOOP :           171 C |  VIDEO_LOADPAL :                115 C |
+ VIDEO_LOADPAL.LOOPMS :         134 C |  VIDEO_LOADPAL.MARK_MS :        12C C |
+ VIDEO_PRINT :                  17A C |  VIDEO_PRINT.BREQ :             215 C |
+ VIDEO_PRINT.DO_NIBBL :         288 C |  VIDEO_PRINT.ENDVAL :           279 C |
+ VIDEO_PRINT.EXIT :             231 C |  VIDEO_PRINT.LOOP :             1B4 C |
+ VIDEO_PRINT.LOOPVAL :          235 C |  VIDEO_PRINT.NEXT :             1D8 C |
+ VIDEO_PRINT.NOADD :            295 C |  VIDEO_PRINT.NOBYTE :           251 C |
+ VIDEO_PRINT.NOCENT :           18F C |  VIDEO_PRINT.NOWORD :           266 C |
+ VIDEO_PRINT.PUT_BYTE :         27F C |  VIDEO_PRINT.SPECIAL :          1E6 C |
+*VIDEO_UPDATE :                  D0 C |  VIDEO_UPDATE.LOOP :             D7 C |
+*V_COUNTER :                     7E - |
+
+    267 symbols
+    144 unused symbols
+
+ AS V1.42 Beta [Bld 118] - source file main.asm - page 3 - 3/10/2023 0:33:40
+
+
+  defined macros:
+  ---------------
+
+FINISH                                | GEMAHEAD                             
+GEMATRK                               | GINSNULL                             
+GINSPSG                               | GINSPSGN                             
+ROMPAD                                | STRUCT                               
+
+      8 macros
+
+ AS V1.42 Beta [Bld 118] - source file main.asm - page 4 - 3/10/2023 0:33:40
+
+
+  defined functions:
+  ------------------
+
+LOCATE                                |
+
+ AS V1.42 Beta [Bld 118] - source file main.asm - page 5 - 3/10/2023 0:33:40
+
+
+  codepages:
+  ----------
+
+STANDARD (0 changed characters)
+
+
+0.03 seconds assembly time
+
+   2137 lines source file
+   2323 lines incl. macro expansions
+      6 passes
+      0 errors
+      0 warnings

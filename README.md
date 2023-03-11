@@ -1,9 +1,11 @@
 # GemaNikona
-A sound driver for the Sega Genesis and Sega 32X running entirely on Z80
+A Z80 sound driver for the Sega Genesis + Sega 32X. Master System and Game Gear is also in progress (it's just the menu for now...)
 
-This is an entire rewrite of the Z80 sound driver that Marsiano-MARS used as that one was a rushed mess, now this driver was better planned and carefully tested this time.
+This is an entire rewrite of the sound driver that Marsiano-MARS used as that one was a rushed mess, now this driver was better planned and carefully tested this time.
 
-The entire sound driver: Z80 code, 68k calls and music/sfx data are located at the /sound folder. ** 32X SUPPORT IS CURRENTLY HARDCODED FOR THIS SOURCE CODE **
+The folder MD_MARS is the Genesis+32X version and MS_GG is for the Master System/Game Gear version
+
+On the MD_MARS folder: The entire sound driver: Z80 code, 68k calls and music/sfx data are located at the /sound folder. ** 32X SUPPORT IS CURRENTLY HARDCODED FOR THIS SOURCE CODE **
 
 The sound testers are located on the /out folder: rom_md.bin for Genesis and rom_mars.bin for 32X
 
