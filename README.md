@@ -5,7 +5,7 @@ This is an entire rewrite of the sound driver that Marsiano-MARS used as that on
 
 The folder MD_MARS is the Genesis+32X version and MS_GG is for the Master System/Game Gear version
 
-On the MD_MARS folder: The entire sound driver: Z80 code, 68k calls and music/sfx data are located at the /sound folder. ** 32X SUPPORT IS CURRENTLY HARDCODED FOR THIS SOURCE CODE **
+On the MD_MARS folder, the entire sound driver: Z80 code, 68k calls and music/sfx data are located at the /sound folder. ** 32X SUPPORT IS CURRENTLY HARDCODED FOR THIS SOURCE CODE **
 
 The sound testers are located on the /out folder: rom_md.bin for Genesis and rom_mars.bin for 32X
 
