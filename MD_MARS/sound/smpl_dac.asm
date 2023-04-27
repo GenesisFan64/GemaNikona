@@ -23,6 +23,7 @@ DacIns_wegot_kick:
 	gSmpHead .end-.start,0
 .start:	binclude "sound/instr/smpl/wegot_kick.wav",$2C
 .end:
+
 DacIns_Snare_1:
 	gSmpHead .end-.start,0
 .start:	binclude "sound/instr/smpl/snare_1.wav",$2C

@@ -36,17 +36,23 @@ notZ80 function cpu,(cpu<>128)&&(cpu<>32988)
 
 ; -------------------------------------
 ; Reserve memory section
-;
-; NOTE: This doesn't work for Z80
 ; -------------------------------------
 
 struct		macro thisinput			; Reserve memory address
+
+; 	if WPATCH=1
+; GLBL_LASTPC	set *
+; GLBL_LASTORG	set *
+; 		dephase
+; 		phase thisinput
+; 	else
 GLBL_LASTPC	set *
 		dephase
 GLBL_LASTORG	set *
 		phase thisinput
+; 	endif
 		endm
-		
+
 ; -------------------------------------
 ; Finish struct
 ; -------------------------------------

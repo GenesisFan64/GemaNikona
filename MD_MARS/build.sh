@@ -16,14 +16,14 @@ clear
 
 # MD
 echo "** MD **"
-tools/AS/linux/asl md.asm -q -xx -c -A -olist out/rom_md.lst -A -L -D MCD=0,MARS=0,MARSCD=0
+tools/AS/linux/asl md.asm -q -xx -c -A -olist out/rom_md.lst -A -L -D MCD=0,MARS=0,MARSCD=0,WPATCH=0
 python tools/p2bin.py md.p out/rom_md.bin
 rm md.p
 rm md.h
 
 # 32X
 echo "** MARS **"
-tools/AS/linux/asl mars.asm -q -xx -c -A -olist out/rom_mars.lst -A -L -D MCD=0,MARS=1,MARSCD=0
+tools/AS/linux/asl mars.asm -q -xx -c -A -olist out/rom_mars.lst -A -L -D MCD=0,MARS=1,MARSCD=0,WPATCH=0
 python tools/p2bin.py mars.p out/rom_mars.bin
 rm mars.p
 rm mars.h

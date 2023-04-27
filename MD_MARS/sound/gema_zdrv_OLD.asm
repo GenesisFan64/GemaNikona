@@ -16,7 +16,7 @@ Z80_TOP:
 ; SETTINGS
 ; --------------------------------------------------------
 
-; !! = leave as-is unless you know what you are doing.
+; !! = leave as is unless you know what you are doing.
 MAX_TRKCHN	equ 17		; !! Max Internal tracker channels: 4PSG + 6FM + 7PWM (**AFFECTS 32X SIDE)
 MAX_TRFRPZ	equ 8		; !! Max transferRom packets(bytes) (**AFFECTS WAVE QUALITY)
 MAX_RCACH	equ 40h		; Max storage for ROM pattern data *1-BIT SIZES ONLY, MUST BE ALIGNED*
@@ -209,7 +209,7 @@ dac_fill:	push	af		; <-- changes between PUSH AF(playing) and RET(stopped)
 ; --------------------------------------------------------
 ; 02Eh
 currTickBits	db 0			; 2Eh: Current Tick/Subbeat flags (000000BTb B-beat, T-tick)
-dDacFifoMid	db 0			; 2Fh: WAVE play halfway refill flag (00h/80h)
+dDacFifoMid	db 0			; 2Fh: WAVE play refill flag (00h/80h)
 dDacPntr	db 0,0,0		; 30h: WAVE play current ROM position
 dDacCntr	db 0,0,0		; 33h: WAVE play length counter
 x68ksrclsb	db 0			; 36h: transferRom temporal LSB
@@ -366,7 +366,7 @@ drv_loop:
 ; TEST COMMAND
 
 .cmnd_0:
-		jp	.next_cmd
+; 		jp	.next_cmd
 
 ; 	if MARS
 ; 		ld	iy,pwmcom
@@ -395,30 +395,30 @@ drv_loop:
 ; 		jp	.next_cmd
 ; 	endif
 
-; 		call	dac_off
-; 		ld	iy,wave_Start
-; 		ld	hl,.tempset
-; 		ld	b,0Bh
-; .copyme:
-; 		ld	a,(hl)
-; 		ld	(iy),a
-; 		inc	hl
-; 		inc	iy
-; 		djnz	.copyme
-; 		ld	hl,100h
-; 		ld	(wave_Pitch),hl
-; 		ld	a,1
-; 		ld	(wave_Flags),a
-; 		call	dac_play
-; 		jp	.next_cmd
-; .tempset:
-; 		dw TEST_WAVE&0FFFFh
-; 		db TEST_WAVE>>16&0FFh
-; 		dw (TEST_WAVE_E-TEST_WAVE)&0FFFFh
-; 		db (TEST_WAVE_E-TEST_WAVE)>>16&0FFh
-; 		dw 0
-; 		db 0
-; 		dw 0100h;+(ZSET_WTUNE)
+		call	dac_off
+		ld	iy,wave_Start
+		ld	hl,.tempset
+		ld	b,0Bh
+.copyme:
+		ld	a,(hl)
+		ld	(iy),a
+		inc	hl
+		inc	iy
+		djnz	.copyme
+		ld	hl,100h
+		ld	(wave_Pitch),hl
+		ld	a,1
+		ld	(wave_Flags),a
+		call	dac_play
+		jp	.next_cmd
+.tempset:
+		dw TEST_WAVE&0FFFFh
+		db TEST_WAVE>>16&0FFh
+		dw (TEST_WAVE_E-TEST_WAVE)&0FFFFh
+		db (TEST_WAVE_E-TEST_WAVE)>>16&0FFh
+		dw 0
+		db 0
+		dw 0100h;+(ZSET_WTUNE)
 
 ; --------------------------------------------------------
 ; Command 01h:
@@ -583,7 +583,6 @@ upd_track:
 		ld	b,(iy+trk_status)	; b - Track status and settings
 		bit	7,b			; bit7: Track active?
 		ret	z
-		ld	a,b
 		cp	-1			; Mid-silence request?
 		ret	z
 		ld	a,(currTickBits)	; a - Tick/Beat bits
@@ -760,7 +759,6 @@ upd_track:
 .eff_A:
 		rst	8
 		ld	e,(ix+chnl_EffArg)	; e - ticks number
-		dec	e			; TODO: no minus protection
 		ld	(iy+trk_tickSet),e	; set for both Set and Timer.
 		ld	(iy+trk_tickTmr),e
 		res	3,(ix+chnl_Flags)	; <-- Clear EFFECT bit
@@ -1013,15 +1011,6 @@ upd_track:
 ; ix
 ; ----------------------------------------
 
-; ----------------------------------------
-; Reset tracker channels
-;
-; iy - Track buffer
-;
-; Breaks:
-; ix
-; ----------------------------------------
-
 track_out:
 ; 		push	iy
 		ld	e,(iy+trk_ChnList)	; Point to track-data
@@ -1033,18 +1022,17 @@ track_out:
 		ld	b,(iy+trk_MaxChnls)	; MAX_TRKCHN
 		xor	a
 .clrfe:
-		ld	a,(ix+chnl_Chip)
-		or	a
-		jr	z,.nochip
+; 		ld	a,(ix+chnl_Chip)
+; 		or	a
+; 		jr	z,.nochip
 		ld	(ix+chnl_Note),-2
 		ld	(ix+chnl_Flags),1
+.nochip:
 		ld	(ix+chnl_Vol),64
 		rst	8
 		ld	(iy+chnl_EffId),0
 		ld	(iy+chnl_EffArg),0
 		ld	(iy+chnl_Ins),0
-		ld	(iy+chnl_Type),0
-.nochip:
 		add	ix,de
 		djnz	.clrfe
 		ld	a,1
@@ -1096,8 +1084,7 @@ init_RomTrcks:
 ; --------------------------------------------------------
 
 set_chips:
-		rst	20h			; Refill wave
-		call	get_tick
+; 		rst	20h			; Refill wave
 		ld	iy,nikona_BuffList
 .trk_buffrs:
 		rst	8
@@ -1160,7 +1147,7 @@ tblbuff_read:
 		pop	bc
 		ld	de,8
 		add	ix,de
-		rst	8	; wave sync
+		rst	8		; wave sync
 		djnz	.next_chnl
 		ret
 
@@ -1497,7 +1484,7 @@ dtbl_multi:
 		rst	8
 		ld	de,MAX_TBLSIZE
 		add	iy,de
-		nop
+		nop	; wave sync
 		nop
 		nop
 		nop
@@ -1575,9 +1562,9 @@ dtbl_frommul:
 		ld	a,(de)		; ** chnl_Flags
 		ld	b,a		; b - flags to check
 		and	00001111b	; Filter flags
-		ret	z
+		ret	z		; Return if none.
 		ld	a,b
-		and	11110000b	; Keep OTHER bits
+		and	11110000b	; Keep the other bits
 		ld	(de),a		; ** clear chnl_Flags
 		push	de
 		pop	ix
@@ -1730,7 +1717,6 @@ dtbl_frommul:
 		jp	z,.fm_cut
 		cp	-1
 		jp	z,.fm_off
-; 		call	.fm_tloff
 		rst	8
 		ld	c,(iy+05h)	; c - KeyID
 		ld	a,b		; Note bit?
@@ -2240,7 +2226,6 @@ dtbl_frommul:
 		ret
 
 ; ----------------------------------------
-
 ; PSG
 .pn_ins:
 		ld	a,(hl)		; Grab noise setting
@@ -2281,10 +2266,11 @@ dtbl_frommul:
 		pop	ix
 		ret
 
-; --------
+; ----------------------------------------
+; FM
+;
 
 .fm_ins:
-;  ret
 		push	ix
 		push	hl
 		push	bc
@@ -2327,12 +2313,10 @@ dtbl_frommul:
 		push	de
 		ld	bc,28h		; <- size
 		call	transferRom	; *** ROM ACCESS ***
-
 		pop	hl
 		ld	a,(iy+05h)
 		ld	c,a		; c - FM Key ID
 ; 		call	.fm_keyoff
-
 	; hl - fmcach intrument
 	; de - FM reg and data: 3000h
 	;  c - FM keyChannel
@@ -2382,13 +2366,11 @@ dtbl_frommul:
 		inc	d
 		djnz	.fm_setrlist
 		ret
-; --------
+; ----------------------------------------
+; DAC
 
 .dac_ins:
 		ld	e,(ix+chnl_Ins)	; b - current Ins
-; 		ld	a,(iy+0Bh)	; 0Bh: DON'T reload flag
-; 		cp	e
-; 		jr	z,.same_dac
 		ld	(iy+0Bh),e
 		push	hl
 		push	bc
@@ -2441,7 +2423,6 @@ dtbl_frommul:
 		call	fm_send_1
 		pop	bc
 		pop	hl
-; .same_dac:
 		ret
 
 ; --------
@@ -2471,7 +2452,6 @@ dtbl_frommul:
 		or	d
 		ld	d,a
 		rst	8
-
 	; de,hl - 32-bit PWM pointer
 		ld	ix,pwmcom
 		ld	b,0
@@ -2767,6 +2747,7 @@ dtbl_frommul:
 		ld	(iy+09h),a
 		ld	(iy+0Ah),a
 		ld	(iy+0Bh),a
+
 ; 		push	iy
 ; 		pop	hl
 ; 		ld	bc,8-2		; Go to 08h
@@ -3943,16 +3924,14 @@ nikona_SetMstrList:
 ; Channel table struct:
 ; 00  - Linked tracker channel
 ; 02  - 00h-7Fh: Priority level / 80h+ Silence request (chip ID)
-; 03  - Intrument cache pointer
+; 03  - Intrument data pointer
 ; 05  - Chip index (YM2612: KEY index)
-; 06  - Frequency list index (YM2612: oct|index)
-; 07  - Pitchbend add/sub
-; 08  - Current volume: 00-max
+; 06  - Frequency table index (YM2612: oooiiii0b o=octave i=index*2)
+; 07  - Pitch-bend add/sub
+; 08  - Current volume (00=max)
 ; 09  - Stored effect setting
-; 0A  - FREE
-; 0B  - FREE
-; 0C+ - Misc. settings for the current chip
-
+; 0A+ - Misc. settings for the current chip
+;
 ; PSG   80h
 ; PSGN  90h
 ; FM   0A0h
@@ -3976,7 +3955,7 @@ tblPSG:		db 00h,00h,00h,00h,00h,00h,00h,00h	; Channel 1
 		db 00h,00h,00h,00h,00h,02h,00h,00h	; Channel 3
 		db 00h,00h,00h,00h,00h,00h,00h,00h
 		dw -1	; end-of-list
-tblPSGN:	db 00h,00h,00h,00h,00h,03h,00h,03h	; Noise
+tblPSGN:	db 00h,00h,00h,00h,00h,03h,00h,03h	; * Noise
 		db 00h,00h,00h,00h,00h,00h,00h,00h
 tblFM:		db 00h,00h,00h,00h,00h,00h,00h,00h	; Channel 1
 		db 00h,00h,00h,00h,00h,00h,00h,00h
@@ -3986,9 +3965,9 @@ tblFM:		db 00h,00h,00h,00h,00h,00h,00h,00h	; Channel 1
 		db 00h,00h,00h,00h,00h,00h,00h,00h
 		db 00h,00h,00h,00h,00h,05h,00h,00h	; Channel 5
 		db 00h,00h,00h,00h,00h,00h,00h,00h
-tblFM3:		db 00h,00h,00h,00h,00h,02h,00h,00h	; Channel 3 <--
+tblFM3:		db 00h,00h,00h,00h,00h,02h,00h,00h	; * Channel 3 <--
 		db 00h,00h,00h,00h,00h,00h,00h,00h
-tblFM6:		db 00h,00h,00h,00h,00h,06h,00h,00h	; Channel 6 <--
+tblFM6:		db 00h,00h,00h,00h,00h,06h,00h,00h	; * Channel 6 <--
 		db 00h,00h,00h,00h,00h,00h,00h,00h
 		dw -1	; end-of-list
 tblPWM:		db 00h,00h,00h,00h,00h,00h,00h,00h	; Channel 1

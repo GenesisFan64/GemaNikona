@@ -122,6 +122,7 @@ gInsPwm	macro pitch,start,flags
 
 Gema_MasterList:
 	gemaTrk 3,GemaTrk_TEST_0	; Ticks, Track pointer (Default tempo: 150/120)
+	gemaTrk $80|6,GemaTrk_MAIN_0
 	gemaTrk $80|6,GemaTrk_BodyOver
 	gemaTrk 7,GemaTrk_MOVEME
 	gemaTrk 4,GemaTrk_xtrim
@@ -131,7 +132,6 @@ Gema_MasterList:
 	gemaTrk 3,GemaTrk_TEST_3
 	gemaTrk 3,GemaTrk_TEST_4
 	gemaTrk 3,GemaTrk_TEST_5
-	gemaTrk 3,GemaTrk_TEST_0
 	gemaTrk 3,GemaTrk_TEST_0
 	gemaTrk 3,GemaTrk_TEST_0
 	gemaTrk 3,GemaTrk_TEST_0
@@ -357,3 +357,22 @@ GemaTrk_TEST_0:
 	gInsFm3 0,FmIns_Sp_OpenHat
 	gInsDac -12,DacIns_Snare_1,0
 	gInsPwm -17,SmpIns_VctrBrass,%001
+
+; ------------------------------------------------------------
+
+GemaTrk_MAIN_0:
+	gemaHead .blk,.pat,.ins
+.blk:
+	binclude "sound/tracks/main0_blk.bin"
+.pat:
+	binclude "sound/tracks/main0_patt.bin"
+.ins:
+	gInsDac   0,DacIns_wegot_kick,0
+	gInsPsgN  0,$00,$00,$00,$00,$0A,0,%101 ;gInsDac   0,DacIns_Snare_scd,0
+	gInsFm  -36,FmIns_Guitar_bball
+	gInsFm3   0,FmIns_Sp_OpenHat
+	gInsFm    0,FmIns_Bass_low_1
+	gInsFm   0,FmIns_Sewer_1
+	gInsPsg  0,$20,$40,$00,$02,$08,0
+	gInsFm   0,FmIns_Piano_m1
+	gInsFm   0,FmIns_Hats_1

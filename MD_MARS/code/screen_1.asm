@@ -110,8 +110,6 @@ MD_2DMODE:
 		clr.w	(RAM_PaletteFd).w		; <-- quick patch
 		clr.w	(RAM_MdMarsPalFd).w
 
-
-
 	; Set Fade-in settings
 		move.w	#1,(RAM_FadeMdIncr).w
 		move.w	#2,(RAM_FadeMarsIncr).w
@@ -286,13 +284,13 @@ MD_2DMODE:
 ; -1 = don't set
 .tempolist:
 		dc.w -1
+		dc.w 200+20
 		dc.w -1
 		dc.w -1
 		dc.w -1
 		dc.w 200+8
 		dc.w -1
 		dc.w 200+13 ; $0006
-		dc.w -1
 		dc.w -1
 		dc.w -1
 		dc.w -1

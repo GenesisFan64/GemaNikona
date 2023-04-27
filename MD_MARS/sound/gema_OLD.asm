@@ -75,7 +75,7 @@ Sound_Init:
 .cleanup:
 		move.b	d1,(a0)+
 		dbf	d0,.cleanup
-		lea	(Z80_CODE).l,a0			; a0 - Z80 code (on $880000)
+		lea	(Z80_CODE).l,a0			; a0 - Z80 code to load
 		lea	(z80_cpu).l,a1			; a1 - Z80 CPU area
 		move.w	#(Z80_CODE_END-Z80_CODE)-1,d0	; d0 - Size
 .copy:
@@ -122,9 +122,8 @@ sndUnlockZ80:
 ; ------------------------------------------------
 
 sndReq_Enter:
-		suba	#4,sp				; Extra jump return
 		movem.l	d6-d7/a5-a6,-(sp)		; Save these regs to the stack
-		adda	#(4*4)+4,sp			; Go back to the RTS jump
+		adda	#4*4,sp				; Go back to the RTS jump
 		move.w	#$0100,(z80_bus).l		; Request Z80 Stop
 		moveq	#0,d6
 		move.w	sr,d6
@@ -143,9 +142,8 @@ sndReq_Exit:
 		move.w	#0,(z80_bus).l
 		swap	d6
 		move.w	d6,sr
-		suba	#8+(4*4),sp
+		suba	#4*4,sp				; Roll to the last regs
 		movem.l	(sp)+,d6-d7/a5-a6		; And pop those back
-		adda	#8,sp
 		rts
 
 ; ------------------------------------------------
@@ -305,7 +303,7 @@ gemaTest:
 ; --------------------------------------------------------
 ; gemaPlayTrack
 ;
-; Play a track by number
+; Play a track by number, starts from block 0
 ;
 ; d0.b - Track number
 ; --------------------------------------------------------
@@ -331,7 +329,7 @@ gemaPlayTrack:
 
 gemaPlayFromBlk:
 		bsr	sndReq_Enter
-		move.w	#$01,d7		; Command $04
+		move.w	#$01,d7		; Command $01
 		bsr	sndReq_scmd
 		move.b	d0,d7
 		bsr	sndReq_sbyte
@@ -342,7 +340,7 @@ gemaPlayFromBlk:
 ; --------------------------------------------------------
 ; gemaStopTrack
 ;
-; Stops a track using that ID
+; Stops a track with the same ID
 ;
 ; d0.b - Track number
 ; --------------------------------------------------------

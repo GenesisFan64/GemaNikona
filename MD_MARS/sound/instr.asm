@@ -118,3 +118,17 @@ FmIns_Trombone_gem:
 		binclude "sound/instr/fm/OLD/trombone_gem.gsx",$2478,$20
 FmIns_HBeat_tom:
 		binclude "sound/instr/fm/OLD/nadia_tom.gsx",$2478,$20
+
+
+FmIns_Piano_m1:
+		binclude "sound/instr/fm/piano_m1.gsx",$2478,$20
+FmIns_Guitar_bball:
+		binclude "sound/instr/fm/guitar_bball.gsx",$2478,$20
+FmIns_Hats_1:
+		binclude "sound/instr/fm/fm_hats_spot.bin"
+FmIns_Bass_low_1:
+		binclude "sound/instr/fm/bass_low_1.bin"
+FmIns_Sewer_1:
+		binclude "sound/instr/fm/sewer_1.bin"
+FmIns_Piano_Hard:
+		binclude "sound/instr/fm/piano_hard.bin"
